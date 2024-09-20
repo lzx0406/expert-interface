@@ -1,14 +1,32 @@
 <!-- <h1>Welcome to SvelteKit</h1>
 <p>Visit <a href="https://kit.svelte.dev">kit.svelte.dev</a> to read the documentation</p> -->
+<!-- <script lang="ts"> -->
 <script>
-  let prompts = [
+  import { writable } from "svelte/store";
+  // interface Prompt {
+  //   id: number;
+  //   title: string;
+  //   text: string;
+  //   date: string;
+  //   accuracy: string;
+  //   f1Score: string;
+  //   precision: string;
+  //   recall: string;
+  //   showDetails: boolean;
+  //   showErrors: boolean;
+  //   adding: boolean;
+  // }
+
+  export const prompts = writable([]);
+
+  $prompts = [
     {
       id: 1,
       title: "Prompt 1",
       text: `Given the following text, determine if it exhibits an intent towards promoting wildlife preservation. Consider if the text includes actions, advocacy, suggestions, or support for activities such as protecting endangered species, conserving habitats, reducing human impact on ecosystems, or advocating for conservation policies. Respond with 'Yes' if the text promotes wildlife preservation and 'No' if it does not. Additionally, provide a brief explanation for your decision.
 Text: "This bear looks cute, but it shouldn't be so close to camp." Given the following text, determine if it exhibits an intent towards promoting wildlife preservation. Consider if the text includes actions, advocacy, suggestions, or support for activities such as protecting endangered species, conserving habitats, reducing human impact on ecosystems, or advocating for conservation policies. Respond with 'Yes' if the text promotes wildlife preservation and 'No' if it does not. Additionally, provide a brief explanation for your decision.
 Text: "This bear looks cute, but it shouldn't be so close to camp." Given the following text, determine if it exhibits an intent towards promoting wildlife preservation. Consider if the text includes actions, advocacy, suggestions, or support for activities such as protecting endangered species, conserving habitats, reducing human impact on ecosystems, or advocating for conservation policies. Respond with 'Yes' if the text promotes wildlife preservation and 'No' if it does not. Additionally, provide a brief explanation for your decision.
-Text: "This bear looks cute, but it shouldn’t be so close to camp."`,
+Text: "This bear looks cute, but it shouldn't be so close to camp."`,
       date: "09/17/2024",
       accuracy: "85%",
       f1Score: "",
@@ -35,8 +53,8 @@ Text: "This bear looks cute, but it shouldn’t be so close to camp."`,
 
   function addPromptWindow() {
     const newPrompt = {
-      id: prompts.length + 1,
-      title: `Prompt ${prompts.length + 1}`,
+      id: $prompts.length + 1,
+      title: `Prompt ${$prompts.length + 1}`,
       text: ``,
       date: new Date().toLocaleDateString(),
       accuracy: "",
@@ -48,15 +66,15 @@ Text: "This bear looks cute, but it shouldn’t be so close to camp."`,
       adding: true,
     };
     // addPrompt(newPrompt);
-    prompts = [newPrompt, ...prompts];
+    $prompts = [newPrompt, ...$prompts];
   }
 
   function addPrompt(newPrompt) {
-    prompts = [...prompts, newPrompt];
+    $prompts = [...$prompts, newPrompt];
   }
 
   function toggleDetails(index) {
-    prompts[index].showDetails = !prompts[index].showDetails;
+    $prompts[index].showDetails = !$prompts[index].showDetails;
   }
 
   // function toggleErrors(index) {
@@ -72,7 +90,7 @@ Text: "This bear looks cute, but it shouldn’t be so close to camp."`,
 </section>
 
 <section>
-  {#each prompts as prompt, index}
+  {#each $prompts as prompt, index}
     {#if prompt.adding}
       <div class="prompt">
         <!-- svelte-ignore a11y-click-events-have-key-events -->
@@ -115,7 +133,13 @@ Text: "This bear looks cute, but it shouldn’t be so close to camp."`,
                 <p><strong>Recall:</strong> {prompt.recall}</p>
               </div>
               <!-- <button on:click={() => toggleErrors(index)}>Error examples</button> -->
-              <a href="/examples" style="text-align:right;">Error Examples</a>
+              <!-- <a href="/examples/${prompt.id}" style="text-align:right;"
+                >View Examples</a
+              > -->
+              <a
+                href={`/examples?title=${encodeURIComponent(prompt.title)}&id=${prompt.id}`}
+                style="text-align:right;">Error Examples</a
+              >
             </div>
           </div>
         {/if}
