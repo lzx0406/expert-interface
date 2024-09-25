@@ -107,7 +107,7 @@
               > -->
               <a
                 href={`/examples?title=${encodeURIComponent(prompt.title)}&id=${prompt.id}`}
-                style="text-align:right;">Error Examples</a
+                style="text-align:right;">Error Examples &rarr;</a
               >
             </div>
           </div>
