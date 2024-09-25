@@ -32,7 +32,11 @@
     "appreciation_wildlife",
     "appreciation_human",
     "call_to_action",
-    "comment_id",
+    "bert_cw",
+    "bert_ch",
+    "bert_aw",
+    "bert_ah",
+    "bert_call",
   ];
 
   let selectedLabel = columnHeaders[0]; // Default label
@@ -58,20 +62,64 @@
     }
   });
 
+  /**
+   * @param {number} value
+   */
+  function isYes(value) {
+    return value == 2 || value == 3;
+  }
+
+  /**
+   * @param {number} value
+   */
+  function isNo(value) {
+    return value == 0 || value == 1;
+  }
+
   function filterData() {
     csvData.subscribe((data) => {
       filteredData = data.filter((row) => {
-        const value = parseInt(row[selectedLabel], 10);
-
-        // Filter based on true/false positive/negative criteria
         let include = true;
 
-        if (truePositive && !(value === 2 || value === 3)) include = false;
-        if (falsePositive && !(value === 0 || value === 1)) include = false;
-        if (trueNegative && !(value === 2 || value === 3)) include = false;
-        if (falseNegative && !(value === 0 || value === 1)) include = false;
+        // If TP, FP, TN, FN filters are applied
+        if (truePositive || falsePositive || trueNegative || falseNegative) {
+          const mappings = {
+            concern_wildlife: "bert_cw",
+            concern_human: "bert_ch",
+            appreciation_wildlife: "bert_aw",
+            appreciation_human: "bert_ah",
+            call_to_action: "bert_call",
+          };
 
-        // return include && value == selectedValue;
+          include = false; // Start with assuming we exclude the row
+
+          for (const [trueLabel, prediction] of Object.entries(mappings)) {
+            const trueValue = parseInt(row[trueLabel], 10);
+            const predictedValue = parseInt(row[prediction], 10);
+
+            // True Positive: both true value and predicted value are YES
+            if (truePositive && isYes(trueValue) && isYes(predictedValue)) {
+              include = true;
+            }
+
+            // False Positive: true value is NO, predicted value is YES
+            if (falsePositive && isNo(trueValue) && isYes(predictedValue)) {
+              include = true;
+            }
+
+            // True Negative: both true value and predicted value are NO
+            if (trueNegative && isNo(trueValue) && isNo(predictedValue)) {
+              include = true;
+            }
+
+            // False Negative: true value is YES, predicted value is NO
+            if (falseNegative && isYes(trueValue) && isNo(predictedValue)) {
+              include = true;
+            }
+          }
+        }
+
+        // Ensure that label comparison also happens
         return include && row[selectedLabel] == selectedValue;
       });
     });
