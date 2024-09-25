@@ -52,6 +52,7 @@ Text: "This bear looks cute, but it shouldn't be so close to camp."`,
   ];
 
   // Set the initial prompts in the store
+  // @ts-ignore
   prompts.set(initialPrompts);
 
   // Use setContext to make the store available to child components

@@ -13,7 +13,7 @@
   let promptList = [];
 
   // Subscribe to the store
-  $: prompts.subscribe((value) => {
+  $: prompts.subscribe((/** @type {any[]} */ value) => {
     console.log("Current prompts:", value);
     promptList = value;
   });
@@ -36,10 +36,16 @@
     $prompts = [newPrompt, ...$prompts];
   }
 
+  /**
+   * @param {any} newPrompt
+   */
   function addPrompt(newPrompt) {
     $prompts = [...$prompts, newPrompt];
   }
 
+  /**
+   * @param {number} index
+   */
   function toggleDetails(index) {
     $prompts[index].showDetails = !$prompts[index].showDetails;
   }

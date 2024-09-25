@@ -2,17 +2,16 @@
 <script>
   import { writable } from "svelte/store";
   import { onMount } from "svelte";
-  // import { prompts } from "$lib/stores";
   import { page } from "$app/stores";
   import { getContext } from "svelte";
+  // @ts-ignore
+  import { csvParse } from "d3-dsv";
 
-  // Retrieve the prompts store from context
   const prompts = getContext("prompts");
-
   let promptList = [];
 
   // Subscribe to the store
-  $: prompts.subscribe((value) => {
+  $: prompts.subscribe((/** @type {any[]} */ value) => {
     console.log("Current prompts:", value);
     promptList = value;
   });
@@ -21,10 +20,28 @@
   const title = query.get("title");
   const id = query.get("id");
 
-  import { csvParse } from "d3-dsv";
-
   // Store for the parsed CSV data
   const csvData = writable([]);
+  /**
+   * @type {any[]}
+   */
+  let filteredData = [];
+  let columnHeaders = [
+    "concern_wildlife",
+    "concern_human",
+    "appreciation_wildlife",
+    "appreciation_human",
+    "call_to_action",
+    "comment_id",
+  ];
+
+  let selectedLabel = columnHeaders[0]; // Default label
+  let selectedValue = "";
+
+  let truePositive = false;
+  let falsePositive = false;
+  let trueNegative = false;
+  let falseNegative = false;
 
   // Load the CSV file on component mount
   onMount(async () => {
@@ -33,20 +50,13 @@
       const text = await response.text();
       const data = csvParse(text);
       csvData.set(data);
+
+      //No filters initially, show everything
+      filteredData = [...data];
     } catch (error) {
       console.error("Error loading CSV file:", error);
     }
   });
-
-  let filteredData = [];
-
-  let selectedLabel = "concern_wildlife"; // Default label
-  let selectedValue = "";
-
-  let truePositive = false;
-  let falsePositive = false;
-  let trueNegative = false;
-  let falseNegative = false;
 
   function filterData() {
     csvData.subscribe((data) => {
@@ -61,7 +71,8 @@
         if (trueNegative && !(value === 2 || value === 3)) include = false;
         if (falseNegative && !(value === 0 || value === 1)) include = false;
 
-        return include && value == selectedValue;
+        // return include && value == selectedValue;
+        return include && row[selectedLabel] == selectedValue;
       });
     });
   }
@@ -86,9 +97,9 @@
     <div style="margin-bottom: 1%">
       <label>Label</label>
       <select bind:value={selectedLabel}>
-        <option value="concern_wildlife">Concern Wildlife</option>
-        <option value="appreciation_wildlife">Appreciation Wildlife</option>
-        <!-- Add more options for other labels -->
+        {#each columnHeaders as label}
+          <option value={label}>{label}</option>
+        {/each}
       </select>
     </div>
 
@@ -117,11 +128,34 @@
 
   <div class="all-data">
     <h2>Filtered Examples</h2>
-    <ul>
+    <!-- <ul>
       {#each filteredData as row}
         <li>{row.comment} (value: {row[selectedLabel]})</li>
       {/each}
-    </ul>
+    </ul> -->
+    {#if filteredData.length > 0}
+      <table>
+        <thead>
+          <tr>
+            {#each Object.keys($csvData[0]) as key}
+              <th>{key}</th> <!-- Render hardcoded column headers -->
+            {/each}
+          </tr>
+        </thead>
+        <tbody>
+          {#each filteredData as row}
+            <tr>
+              {#each Object.values(row) as value}
+                <td>{value}</td>
+                <!-- Render filtered data based on hardcoded column headers -->
+              {/each}
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+    {:else}
+      <p>No data to display. Apply filters to see the results.</p>
+    {/if}
   </div>
 </section>
 
