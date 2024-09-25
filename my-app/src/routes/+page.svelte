@@ -3,53 +3,20 @@
 <!-- <script lang="ts"> -->
 <script>
   import { writable } from "svelte/store";
-  // interface Prompt {
-  //   id: number;
-  //   title: string;
-  //   text: string;
-  //   date: string;
-  //   accuracy: string;
-  //   f1Score: string;
-  //   precision: string;
-  //   recall: string;
-  //   showDetails: boolean;
-  //   showErrors: boolean;
-  //   adding: boolean;
-  // }
+  import { setContext } from "svelte";
 
-  export const prompts = writable([]);
+  import { getContext } from "svelte";
 
-  $prompts = [
-    {
-      id: 1,
-      title: "Prompt 1",
-      text: `Given the following text, determine if it exhibits an intent towards promoting wildlife preservation. Consider if the text includes actions, advocacy, suggestions, or support for activities such as protecting endangered species, conserving habitats, reducing human impact on ecosystems, or advocating for conservation policies. Respond with 'Yes' if the text promotes wildlife preservation and 'No' if it does not. Additionally, provide a brief explanation for your decision.
-Text: "This bear looks cute, but it shouldn't be so close to camp." Given the following text, determine if it exhibits an intent towards promoting wildlife preservation. Consider if the text includes actions, advocacy, suggestions, or support for activities such as protecting endangered species, conserving habitats, reducing human impact on ecosystems, or advocating for conservation policies. Respond with 'Yes' if the text promotes wildlife preservation and 'No' if it does not. Additionally, provide a brief explanation for your decision.
-Text: "This bear looks cute, but it shouldn't be so close to camp." Given the following text, determine if it exhibits an intent towards promoting wildlife preservation. Consider if the text includes actions, advocacy, suggestions, or support for activities such as protecting endangered species, conserving habitats, reducing human impact on ecosystems, or advocating for conservation policies. Respond with 'Yes' if the text promotes wildlife preservation and 'No' if it does not. Additionally, provide a brief explanation for your decision.
-Text: "This bear looks cute, but it shouldn't be so close to camp."`,
-      date: "09/17/2024",
-      accuracy: "85%",
-      f1Score: "",
-      precision: "",
-      recall: "",
-      showDetails: false,
-      showErrors: false,
-      adding: false,
-    },
-    {
-      id: 2,
-      title: "Prompt 2",
-      text: `Given the following text, determine if it exhibits an intent towards promoting wildlife preservation...`,
-      date: "09/18/2024",
-      accuracy: "90%",
-      f1Score: "",
-      precision: "",
-      recall: "",
-      showDetails: false,
-      showErrors: false,
-      adding: false,
-    },
-  ];
+  // Retrieve the prompts store from context
+  const prompts = getContext("prompts");
+
+  let promptList = [];
+
+  // Subscribe to the store
+  $: prompts.subscribe((value) => {
+    console.log("Current prompts:", value);
+    promptList = value;
+  });
 
   function addPromptWindow() {
     const newPrompt = {
@@ -99,15 +66,17 @@ Text: "This bear looks cute, but it shouldn't be so close to camp."`,
           <h3>{prompt.title}</h3>
           <p>{prompt.date}</p>
         </div>
-        <div style="margin: 1% 0% 3% 0%;">
-          <textarea
-            bind:value={prompt.text}
-            placeholder="Please enter your new prompt"
-            class="prompt-text"
-            style="width:100%; height: 17em;"
-          />
-          <button style="float: right;">Submit and Test</button>
-        </div>
+        {#if prompt.showDetails}
+          <div style="margin: 1% 0% 3% 0%; padding-bottom:2%">
+            <textarea
+              bind:value={prompt.text}
+              placeholder="Please enter your new prompt"
+              class="prompt-text"
+              style="width:100%; height: 17em;"
+            />
+            <button style="float: right;">Submit and Test</button>
+          </div>
+        {/if}
       </div>
     {/if}
 
