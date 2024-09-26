@@ -40,19 +40,9 @@
   ];
 
   let selectedLabel = columnHeaders[0]; // Default label
-  let selectedValue = "";
-
-  let truePositive = false;
-  let falsePositive = false;
-  let trueNegative = false;
-  let falseNegative = false;
-
-  let metrics = {
-    accuracy: 0,
-    precision: 0,
-    recall: 0,
-    f1Score: 0,
-  };
+  let predValue = "";
+  let trueValue = "";
+  let showWrongPredictions = false;
 
   // Load the CSV file on component mount
   onMount(async () => {
@@ -74,7 +64,7 @@
    */
   function isYes(value) {
     if (value == 2 || value == 3) {
-      console.log("TRUEEEeeeee");
+      console.log("Is YES");
       return true;
     }
     return false;
@@ -85,100 +75,67 @@
    */
   function isNo(value) {
     if (value == 0 || value == 1) {
-      console.log("Falseeeeeee");
+      console.log("Is NOO");
       return true;
     }
     return false;
+  }
+
+  /**
+   * @param {number} value
+   */
+  function isYesPred(value) {
+    return value == 1;
+  }
+
+  /**
+   * @param {number} value
+   */
+  function isNoPred(value) {
+    return value == 0;
   }
 
   function filterData() {
     csvData.subscribe((data) => {
       filteredData = data.filter((row) => {
         let include = true;
-        let tp = 0,
-          fp = 0,
-          tn = 0,
-          fn = 0;
-
-        // If TP, FP, TN, FN filters are applied
-        if (truePositive || falsePositive || trueNegative || falseNegative) {
-          const mappings = {
-            concern_wildlife: "bert_cw",
-            concern_human: "bert_ch",
-            appreciation_wildlife: "bert_aw",
-            appreciation_human: "bert_ah",
-            call_to_action: "bert_call",
-          };
-          const trueLabel = selectedLabel;
-          const prediction = mappings[selectedLabel];
-
-          include = false; // Start with assuming we exclude the row
-
-          // console.log("TRUEEEE label:" + trueLabel);
-          const trueValue = parseInt(row[trueLabel], 10);
-          console.log("TRUE val" + trueValue);
-          const predictedValue = parseInt(row[prediction], 10);
-          // console.log("Pred label:" + prediction);
-          console.log("pred val" + predictedValue);
-
-          if (isNaN(trueValue) || isNaN(predictedValue)) {
-            return false;
-          }
-
-          // True Positive: both true value and predicted value are YES
-          if (truePositive && isYes(trueValue) && isYes(predictedValue)) {
-            console.log("TPPPPPPPPP");
-            include = true;
-          }
-
-          // False Positive: true value is NO, predicted value is YES
-          if (falsePositive && isNo(trueValue) && isYes(predictedValue)) {
-            include = true;
-          }
-
-          // True Negative: both true value and predicted value are NO
-          if (trueNegative && isNo(trueValue) && isNo(predictedValue)) {
-            include = true;
-          }
-
-          // False Negative: true value is YES, predicted value is NO
-          if (falseNegative && isYes(trueValue) && isNo(predictedValue)) {
-            console.log("FFFNNNNN");
-            include = true;
-          }
-        }
-
-        // Calculate metrics for the filtered data
-        const accuracy = (tp + tn) / (tp + tn + fp + fn);
-        const precision = tp / (tp + fp || 1); // Prevent division by zero
-        const recall = tp / (tp + fn || 1);
-        const f1Score = 2 * ((precision * recall) / (precision + recall || 1));
-
-        // Update the UI with the calculated metrics
-        console.log("Accuracy:", accuracy);
-        console.log("Precision:", precision);
-        console.log("Recall:", recall);
-        console.log("F1 Score:", f1Score);
-
-        // Set the metrics to be displayed in the UI
-        metrics = {
-          accuracy: accuracy.toFixed(2),
-          precision: precision.toFixed(2),
-          recall: recall.toFixed(2),
-          f1Score: f1Score.toFixed(2),
+        const mappings = {
+          concern_wildlife: "bert_cw",
+          concern_human: "bert_ch",
+          appreciation_wildlife: "bert_aw",
+          appreciation_human: "bert_ah",
+          call_to_action: "bert_call",
         };
 
-        // Ensure that label comparison also happens
-        if (
-          selectedValue == "0" ||
-          selectedValue == "1" ||
-          selectedValue == "2" ||
-          selectedValue == "3"
-        ) {
-          return include && row[selectedLabel] == selectedValue;
+        /**
+         * @type {number}
+         */
+        const truth = row[selectedLabel];
+        // @ts-ignore
+        const prediction = row[mappings[selectedLabel]];
+
+        // Filter based on prediction value (Yes/No) - only 0/1?
+        if (predValue) {
+          if (predValue === "Yes") {
+            include = include && isYesPred(prediction);
+          } else if (predValue === "No") {
+            include = include && isNoPred(prediction);
+          }
         }
+
+        if (trueValue) {
+          if (trueValue === "Yes") {
+            include = include && isYes(truth);
+          } else if (trueValue === "No") {
+            include = include && isNo(truth);
+          }
+        }
+
+        if (showWrongPredictions) {
+          include = include && truth != prediction;
+        }
+
         return include;
-        // return include;
       });
     });
   }
@@ -213,37 +170,32 @@
 
         <div style="margin-bottom: 1%">
           <label>Predicted value</label>
-          <input type="number" bind:value={selectedValue} min="0" max="3" />
+          <select bind:value={predValue}>
+            <option value="">Any</option>
+            <option value="Yes">Yes</option>
+            <option value="No">No</option>
+          </select>
         </div>
 
         <div style="margin-bottom: 1%">
-          <p style="margin-bottom:0px; color:#666666; font-size:small;">
-            Confusion Matrix defined with 0 to 1=False, 2 to 3 True
-          </p>
+          <label>True value</label>
+          <select bind:value={trueValue}>
+            <option value="">Any</option>
+            <option value="Yes">Yes</option>
+            <option value="No">No</option>
+          </select>
+        </div>
+
+        <div style="margin-bottom: 1%">
           <label>
-            <input type="checkbox" bind:checked={falsePositive} /> False Positive
-          </label>
-          <label>
-            <input type="checkbox" bind:checked={falseNegative} /> False Negative
-          </label>
-          <label>
-            <input type="checkbox" bind:checked={truePositive} /> True Positive
-          </label>
-          <label>
-            <input type="checkbox" bind:checked={trueNegative} /> True Negative
+            <input type="checkbox" bind:checked={showWrongPredictions} />
+            Show only incorrect predictions
           </label>
         </div>
 
         <button on:click={filterData} style="margin-top: 2%"
           >Apply Filters</button
         >
-      </div>
-
-      <div class="metrics">
-        <p><strong>Accuracy:</strong> {metrics.accuracy}</p>
-        <p><strong>F1 Score:</strong> {metrics.f1Score}</p>
-        <p><strong>Precision:</strong> {metrics.precision}</p>
-        <p><strong>Recall:</strong> {metrics.recall}</p>
       </div>
     </div>
   </div>
@@ -310,15 +262,5 @@
     padding: 8px 15px;
     cursor: pointer;
     border-radius: 5px;
-  }
-
-  .metrics {
-    background-color: #e8f2fe;
-    border-radius: 5px;
-    padding: 2%;
-    width: 30%;
-  }
-  .metrics p {
-    margin: 0;
   }
 </style>

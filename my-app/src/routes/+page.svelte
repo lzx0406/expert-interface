@@ -58,6 +58,57 @@
 <section>
   <div class="top">
     <h1>My Prompts</h1>
+    <h4>Instructions:</h4>
+    <p>
+      You are training an AI to annotate your dataset. To start, you need to
+      prompt this AI with a set of instructions. You can also refine your
+      prompts based on the AIs performance.
+    </p>
+    <p>Let's get started!</p>
+    <p>
+      Please determine whether the following post is about a summer vacation. To
+      be about a summer vacation it must both be about a vacation and must take
+      place in the summertime. Please first justify your decision and then
+      conclude with either: <span style="font-style:italic"
+        >“True: This is a post about summer vacation”</span
+      >
+      or
+      <span style="font-style:italic"
+        >“False: This is not a post about summer vacation”</span
+      >
+    </p>
+    <p style="margin-right: 30%; font-style:italic">
+      These instructions should be direct and simple. AI models are designed to
+      respond in specific ways (e.g., polite and informative), but you can
+      tailor their responses by providing clear instructions in your prompts.
+      For example, you can ask them to focus on specific aspects of a topic or
+      provide evidence for their claims.
+    </p>
+    <p>
+      Here is an extended guide for writing effective prompts:
+      https://midas.umich.edu/a-quick-guide-for-effective-prompting/.
+    </p>
+    <p>
+      We strongly suggest your prompt includes this instruction somewhere within
+      the prompt:
+    </p>
+    <p style="margin-right: 30%; font-style:italic">
+      Please first justify your decision and then conclude with either “True:
+      This is X.” or “False: This is not X”.
+    </p>
+    <p>
+      Research has shown that asking the AI to justify its answer improves
+      performance. Additionally, the answer will be coded based on whether the
+      response includes “True: This is X.” or “False: This is not X”.
+    </p>
+    <p>
+      To get started click the + New Prompt button above. After you have entered
+      a prompt you will see how well this prompt was able to instruct the AI to
+      label your data. You will also be able to explore examples that the AI
+      predicted correctly and incorrectly. Please use this feedback to improve
+      your prompt. Click the “+ New Prompt” button above again to enter a new
+      prompt. In total we would like you to enter 10 prompts.
+    </p>
     <button on:click={addPromptWindow}>+ New Prompt</button>
   </div>
 </section>
@@ -125,7 +176,7 @@
 
 <style>
   .top {
-    margin: 0% 0% 3% 5%;
+    margin: 0% 5% 3% 5%;
     display: flex-start;
   }
 
