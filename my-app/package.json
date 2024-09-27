@@ -20,6 +20,8 @@
 	},
 	"type": "module",
 	"dependencies": {
-		"d3-dsv": "^3.0.1"
+		"@fortawesome/free-solid-svg-icons": "^6.6.0",
+		"d3-dsv": "^3.0.1",
+		"svelte-fa": "^4.0.3"
 	}
 }

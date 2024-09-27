@@ -6,6 +6,12 @@
   import { setContext } from "svelte";
 
   import { getContext } from "svelte";
+  import Fa from "svelte-fa";
+  import {
+    faChevronLeft,
+    faChevronRight,
+    faChevronDown,
+  } from "@fortawesome/free-solid-svg-icons";
 
   // Retrieve the prompts store from context
   const prompts = getContext("prompts");
@@ -65,6 +71,11 @@
       prompts based on the AIs performance.
     </p>
     <p>Let's get started!</p>
+    <p>
+      For example, let's say you are asking the AI to identify whether a social
+      media comment is about summer vacations or not. You may write something
+      like the prompt below:
+    </p>
     <p>
       Please determine whether the following post is about a summer vacation. To
       be about a summer vacation it must both be about a vacation and must take
@@ -142,7 +153,11 @@
       <div class="prompt">
         <!-- svelte-ignore a11y-click-events-have-key-events -->
         <div class="prompt-header" on:click={() => toggleDetails(index)}>
-          <h3>{prompt.title}</h3>
+          {#if prompt.showDetails}
+            <h3><Fa icon={faChevronDown} /> &nbsp; {prompt.title}</h3>
+          {:else}
+            <h3><Fa icon={faChevronRight} /> &nbsp; {prompt.title}</h3>
+          {/if}
           <p>{prompt.date}</p>
         </div>
 
@@ -164,7 +179,8 @@
               > -->
               <a
                 href={`/examples?title=${encodeURIComponent(prompt.title)}&id=${prompt.id}`}
-                style="text-align:right;">Error Examples &rarr;</a
+                style="text-align:right;"
+                >Error Examples <Fa icon={faChevronRight} /></a
               >
             </div>
           </div>
@@ -226,5 +242,26 @@
     padding: 8px 15px;
     cursor: pointer;
     border-radius: 5px;
+  }
+
+  a:link {
+    text-decoration: none;
+    color: #188df9;
+  }
+
+  a:visited {
+    text-decoration: none;
+    color: #188df9;
+  }
+
+  a:hover {
+    text-decoration: solid;
+    color: #5facf2;
+    font-weight: bold;
+  }
+
+  a:active {
+    text-decoration: none;
+    color: #5facf2;
   }
 </style>

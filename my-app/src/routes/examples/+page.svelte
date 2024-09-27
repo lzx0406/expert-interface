@@ -6,6 +6,13 @@
   import { getContext } from "svelte";
   // @ts-ignore
   import { csvParse } from "d3-dsv";
+  import Fa from "svelte-fa";
+  import {
+    faBookBookmark,
+    faChevronLeft,
+    faChevronRight,
+    faHouse,
+  } from "@fortawesome/free-solid-svg-icons";
 
   const prompts = getContext("prompts");
   let promptList = [];
@@ -143,7 +150,7 @@
 
 <section>
   <div class="top">
-    <!-- <h1>Annotation Examples for {title}</h1> -->
+    <a href={`../`}><Fa icon={faHouse} /> Back to My Prompts </a>
     <h1>Annotation Examples</h1>
     <p>Prompt {id}</p>
     <p>{$prompts[id - 1].text}</p>
@@ -262,5 +269,26 @@
     padding: 8px 15px;
     cursor: pointer;
     border-radius: 5px;
+  }
+
+  a:link {
+    text-decoration: none;
+    color: #188df9;
+  }
+
+  a:visited {
+    text-decoration: none;
+    color: #188df9;
+  }
+
+  a:hover {
+    text-decoration: solid;
+    color: #5facf2;
+    font-weight: bold;
+  }
+
+  a:active {
+    text-decoration: none;
+    color: #5facf2;
   }
 </style>
