@@ -11,6 +11,7 @@
     faChevronLeft,
     faChevronRight,
     faChevronDown,
+    faHouse,
   } from "@fortawesome/free-solid-svg-icons";
 
   // Retrieve the prompts store from context
@@ -63,7 +64,7 @@
 
 <section>
   <div class="top">
-    <h1>My Prompts</h1>
+    <h1><Fa icon={faHouse} /> My Prompts</h1>
     <h4>Instructions:</h4>
     <p>
       You are training an AI to annotate your dataset. To start, you need to
@@ -88,7 +89,7 @@
         >“False: This is not a post about summer vacation”</span
       >
     </p>
-    <p style="margin-right: 30%; font-style:italic">
+    <p>
       These instructions should be direct and simple. AI models are designed to
       respond in specific ways (e.g., polite and informative), but you can
       tailor their responses by providing clear instructions in your prompts.
@@ -97,7 +98,9 @@
     </p>
     <p>
       Here is an extended guide for writing effective prompts:
-      https://midas.umich.edu/a-quick-guide-for-effective-prompting/.
+      <a href="https://midas.umich.edu/a-quick-guide-for-effective-prompting/"
+        >https://midas.umich.edu/a-quick-guide-for-effective-prompting/</a
+      >.
     </p>
     <p>
       We strongly suggest your prompt includes this instruction somewhere within

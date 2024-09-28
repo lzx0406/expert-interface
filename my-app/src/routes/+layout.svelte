@@ -10,10 +10,11 @@
     {
       id: 1,
       title: "Prompt 1",
-      text: `Given the following text, determine if it exhibits an intent towards promoting wildlife preservation. Consider if the text includes actions, advocacy, suggestions, or support for activities such as protecting endangered species, conserving habitats, reducing human impact on ecosystems, or advocating for conservation policies. Respond with 'Yes' if the text promotes wildlife preservation and 'No' if it does not. Additionally, provide a brief explanation for your decision.
-Text: "This bear looks cute, but it shouldn't be so close to camp." Given the following text, determine if it exhibits an intent towards promoting wildlife preservation. Consider if the text includes actions, advocacy, suggestions, or support for activities such as protecting endangered species, conserving habitats, reducing human impact on ecosystems, or advocating for conservation policies. Respond with 'Yes' if the text promotes wildlife preservation and 'No' if it does not. Additionally, provide a brief explanation for your decision.
-Text: "This bear looks cute, but it shouldn't be so close to camp." Given the following text, determine if it exhibits an intent towards promoting wildlife preservation. Consider if the text includes actions, advocacy, suggestions, or support for activities such as protecting endangered species, conserving habitats, reducing human impact on ecosystems, or advocating for conservation policies. Respond with 'Yes' if the text promotes wildlife preservation and 'No' if it does not. Additionally, provide a brief explanation for your decision.
-Text: "This bear looks cute, but it shouldn't be so close to camp."`,
+      text: `Please determine whether the following comment expresses a concern for wildlife. To be considered a 
+      concern for wildlife, the comment must focus on issues related to the well-being, safety, or conservation 
+      of animals in their natural habitats. Please first justify your decision by identifying specific phrases or 
+      concepts related to wildlife concern, and then conclude with either: "True: This comment expresses a concern 
+      for wildlife" or "False: This comment does not express a concern for wildlife."`,
       date: "09/17/2024",
       accuracy: "85%",
       f1Score: "0.78",
@@ -26,7 +27,10 @@ Text: "This bear looks cute, but it shouldn't be so close to camp."`,
     {
       id: 2,
       title: "Prompt 2",
-      text: `Given the following text, determine if it exhibits an intent towards promoting wildlife preservation...`,
+      text: `Please evaluate the following comment and decide whether it contains a concern for wildlife. A concern 
+      for wildlife should include mentions of threats to animal populations, the impact of human activities on wildlife,
+       or appeals for wildlife protection. Please explain the reasoning behind your decision and then conclude with either:
+        "True: This comment contains concern for wildlife" or "False: This comment does not contain concern for wildlife."`,
       date: "09/18/2024",
       accuracy: "90%",
       f1Score: "0.85",
@@ -39,7 +43,10 @@ Text: "This bear looks cute, but it shouldn't be so close to camp."`,
     {
       id: 3,
       title: "Prompt 3",
-      text: "Example prompt",
+      text: `Analyze the following comment and decide if it demonstrates concern for wildlife. For a comment to demonstrate 
+      concern for wildlife, it should discuss the protection, conservation, or welfare of animals and their habitats. Please 
+      provide justification for your answer based on relevant keywords or topics in the comment, and conclude with: "True: This 
+      comment shows concern for wildlife" or "False: This comment does not show concern for wildlife.`,
       date: "09/19/2024",
       accuracy: "88%",
       f1Score: "0.82",

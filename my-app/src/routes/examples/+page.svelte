@@ -12,6 +12,8 @@
     faChevronLeft,
     faChevronRight,
     faHouse,
+    faToggleOn,
+    faToggleOff,
   } from "@fortawesome/free-solid-svg-icons";
 
   const prompts = getContext("prompts");
@@ -45,6 +47,14 @@
     "bert_ah",
     "bert_call",
   ];
+
+  const mappings = {
+    concern_wildlife: "bert_cw",
+    concern_human: "bert_ch",
+    appreciation_wildlife: "bert_aw",
+    appreciation_human: "bert_ah",
+    call_to_action: "bert_call",
+  };
 
   let selectedLabel = columnHeaders[0]; // Default label
   let predValue = "";
@@ -106,13 +116,6 @@
     csvData.subscribe((data) => {
       filteredData = data.filter((row) => {
         let include = true;
-        const mappings = {
-          concern_wildlife: "bert_cw",
-          concern_human: "bert_ch",
-          appreciation_wildlife: "bert_aw",
-          appreciation_human: "bert_ah",
-          call_to_action: "bert_call",
-        };
 
         /**
          * @type {number}
@@ -139,7 +142,7 @@
         }
 
         if (showWrongPredictions) {
-          include = include && truth != prediction;
+          include = include && isYes(truth) != isYesPred(prediction);
         }
 
         return include;
@@ -166,7 +169,7 @@
 
     <div style="display: flex; justify-content: space-between;">
       <div class="adjust-filters">
-        <div style="margin-bottom: 1%">
+        <div style="margin-bottom: 1.5%">
           <label>Label</label>
           <select bind:value={selectedLabel}>
             {#each columnHeaders as label}
@@ -175,7 +178,7 @@
           </select>
         </div>
 
-        <div style="margin-bottom: 1%">
+        <div style="margin-bottom: 1.5%">
           <label>Predicted value</label>
           <select bind:value={predValue}>
             <option value="">Any</option>
@@ -184,7 +187,7 @@
           </select>
         </div>
 
-        <div style="margin-bottom: 1%">
+        <div style="margin-bottom: 1.5%">
           <label>True value</label>
           <select bind:value={trueValue}>
             <option value="">Any</option>
@@ -193,10 +196,23 @@
           </select>
         </div>
 
-        <div style="margin-bottom: 1%">
+        <div style="margin-bottom: 1.5%">
+          <!-- svelte-ignore a11y-label-has-associated-control -->
           <label>
-            <input type="checkbox" bind:checked={showWrongPredictions} />
-            Show only incorrect predictions
+            <!-- svelte-ignore a11y-click-events-have-key-events -->
+            <!-- svelte-ignore a11y-no-static-element-interactions -->
+            <div
+              style="cursor: pointer; display: flex; align-items: center;"
+              on:click={() => (showWrongPredictions = !showWrongPredictions)}
+            >
+              <Fa
+                icon={showWrongPredictions ? faToggleOn : faToggleOff}
+                style="color:#5facf2; font-size: 1.5rem;"
+              />
+              <span style="margin-left: 10px;">
+                Show only incorrect predictions
+              </span>
+            </div>
           </label>
         </div>
 
@@ -208,28 +224,33 @@
   </div>
 
   <div class="all-data">
-    <h2>Filtered Examples</h2>
+    <h2>
+      Filtered Examples for <span style="color:#188df9">{selectedLabel} </span>
+    </h2>
     <!-- <ul>
       {#each filteredData as row}
         <li>{row.comment} (value: {row[selectedLabel]})</li>
       {/each}
     </ul> -->
     {#if filteredData.length > 0}
-      <table>
+      <table class="styled-table">
         <thead>
           <tr>
-            {#each Object.keys($csvData[0]) as key}
-              <th>{key}</th> <!-- Render hardcoded column headers -->
-            {/each}
+            <th></th>
+            <th>Video URL</th>
+            <th>Comment</th>
+            <th>Predicted Value</th>
+            <th>True Value</th>
           </tr>
         </thead>
         <tbody>
-          {#each filteredData as row}
+          {#each filteredData as row, i}
             <tr>
-              {#each Object.values(row) as value}
-                <td>{value}</td>
-                <!-- Render filtered data based on hardcoded column headers -->
-              {/each}
+              <td>{row.index}</td>
+              <td>{row.video_url}</td>
+              <td>{row.comment}</td>
+              <td>{isYesPred(row[mappings[selectedLabel]]) ? "Yes" : "No"}</td>
+              <td>{isYes(row[selectedLabel]) ? "Yes" : "No"}</td>
             </tr>
           {/each}
         </tbody>
@@ -269,6 +290,57 @@
     padding: 8px 15px;
     cursor: pointer;
     border-radius: 5px;
+  }
+
+  .styled-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 25px 0;
+    font-size: 0.9em;
+    /* font-family: "Arial", sans-serif; */
+    border-radius: 5px 5px 0 0;
+    overflow: hidden;
+    border-radius: 1em;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+  }
+
+  .styled-table thead tr {
+    background-color: #5fabf232;
+    /* color: #ffffff; */
+    text-align: left;
+    font-weight: bold;
+  }
+
+  .styled-table th,
+  .styled-table td {
+    padding: 12px 15px;
+    border: 1px solid #dddddd;
+    text-align: left;
+  }
+
+  .styled-table tbody tr {
+    border-bottom: 1px solid #dddddd;
+  }
+
+  .styled-table tbody tr:nth-of-type(even) {
+    background-color: #f3f3f3;
+  }
+
+  .styled-table tbody tr:last-of-type {
+    border-bottom: 2px solid #5facf2;
+  }
+
+  .styled-table tbody tr:hover {
+    background-color: #f1f1f1;
+  }
+
+  .styled-table tbody tr td a {
+    color: #5facf2;
+    text-decoration: none;
+  }
+
+  .styled-table tbody tr td a:hover {
+    text-decoration: underline;
   }
 
   a:link {
