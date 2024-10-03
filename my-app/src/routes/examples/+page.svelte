@@ -247,7 +247,11 @@
           {#each filteredData as row, i}
             <tr>
               <td>{row.index}</td>
-              <td>{row.video_url}</td>
+              <td
+                ><a href="https://www.youtube.com/watch?v={row.video_url}"
+                  >{row.video_url}</a
+                ></td
+              >
               <td>{row.comment}</td>
               <td>{isYesPred(row[mappings[selectedLabel]]) ? "Yes" : "No"}</td>
               <td>{isYes(row[selectedLabel]) ? "Yes" : "No"}</td>

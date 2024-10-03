@@ -69,18 +69,29 @@
 <section>
   <div class="top">
     <h1><Fa icon={faHouse} /> My Prompts</h1>
+    <p>
+      You are training an AI to annotate your dataset by creating prompts that
+      instruct the AI on how to label your data. Write clear and specific
+      prompts, asking the AI to justify its decisions, and refine them based on
+      feedback to improve accuracy. Click on View Instructions below for more
+      details on how to construct your prompt.
+    </p>
+
     <!-- svelte-ignore a11y-click-events-have-key-events -->
     <!-- svelte-ignore a11y-no-static-element-interactions -->
     <div class="prompt-header" on:click={() => toggleInstructions()}>
       {#if expInstruction}
-        <h3><Fa icon={faChevronDown} /> &nbsp; Instructions:</h3>
+        <h3 style="margin-top:0; margin-bottom: 3%">
+          <Fa icon={faChevronDown} /> &nbsp; Instructions:
+        </h3>
       {:else}
-        <h3><Fa icon={faChevronRight} /> &nbsp; View Instructions:</h3>
+        <h3 style="margin-top:0; margin-bottom: 3%">
+          <Fa icon={faChevronRight} /> &nbsp; View Instructions:
+        </h3>
       {/if}
     </div>
 
     {#if expInstruction}
-      <!-- <h4>Instructions:</h4> -->
       <p>
         You are training an AI to annotate your dataset. To start, you need to
         prompt this AI with a set of instructions. You can also refine your
