@@ -21,6 +21,7 @@
 	"type": "module",
 	"dependencies": {
 		"@fortawesome/free-solid-svg-icons": "^6.6.0",
+		"@sveltejs/adapter-node": "^5.2.5",
 		"d3-dsv": "^3.0.1",
 		"svelte-fa": "^4.0.3"
 	}

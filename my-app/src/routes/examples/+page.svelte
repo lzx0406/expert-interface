@@ -1,5 +1,7 @@
 <!-- <h1>Welcome to examples biach</h1> -->
 <script>
+  // @ts-nocheck
+
   import { writable } from "svelte/store";
   import { onMount } from "svelte";
   import { page } from "$app/stores";

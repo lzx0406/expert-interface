@@ -81,11 +81,11 @@
     <!-- svelte-ignore a11y-no-static-element-interactions -->
     <div class="prompt-header" on:click={() => toggleInstructions()}>
       {#if expInstruction}
-        <h3 style="margin-top:0; margin-bottom: 3%">
+        <h3 style="margin-top:0; margin-bottom:1%;">
           <Fa icon={faChevronDown} /> &nbsp; Instructions:
         </h3>
       {:else}
-        <h3 style="margin-top:0; margin-bottom: 3%">
+        <h3 style="margin-top:0; margin-bottom:1%;">
           <Fa icon={faChevronRight} /> &nbsp; View Instructions:
         </h3>
       {/if}
@@ -151,7 +151,9 @@
         prompts.
       </p>
     {/if}
-    <button on:click={addPromptWindow}>+ New Prompt</button>
+    <button on:click={addPromptWindow} style="margin-top: 2%"
+      >+ New Prompt</button
+    >
   </div>
 </section>
 
