@@ -1,9 +1,9 @@
-# fly.toml app configuration file generated for my-app-broken-sound-2878 on 2024-10-04T12:06:47-04:00
+# fly.toml app configuration file generated for my-app-billowing-snow-8810 on 2024-10-09T15:41:56-04:00
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
-app = 'my-app-broken-sound-2878'
+app = 'my-app-billowing-snow-8810'
 primary_region = 'ewr'
 
 [build]

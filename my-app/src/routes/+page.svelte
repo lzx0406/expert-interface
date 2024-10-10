@@ -39,15 +39,7 @@
       showErrors: false,
       adding: true,
     };
-    // addPrompt(newPrompt);
     $prompts = [newPrompt, ...$prompts];
-  }
-
-  /**
-   * @param {any} newPrompt
-   */
-  function addPrompt(newPrompt) {
-    $prompts = [...$prompts, newPrompt];
   }
 
   /**
@@ -61,9 +53,36 @@
   function toggleInstructions() {
     expInstruction = !expInstruction;
   }
-  // function toggleErrors(index) {
-  //   prompts[index].showErrors = !prompts[index].showErrors;
-  // }
+
+  let responseText = "";
+
+  /**
+   * @param {any} promptText
+   * @param {string | number} index
+   */
+  async function sendPrompt(promptText, index) {
+    const apiKey = "";
+    const endpoint = "https://api.openai.com/v1/chat/completions";
+
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini", // or another model?
+        messages: [{ role: "user", content: promptText }],
+        max_tokens: 100,
+      }),
+    });
+
+    const data = await response.json();
+    responseText = data.choices[0].message.content;
+
+    $prompts[0].adding = false;
+    $prompts = [...$prompts];
+  }
 </script>
 
 <section>
@@ -81,12 +100,12 @@
     <!-- svelte-ignore a11y-no-static-element-interactions -->
     <div class="prompt-header" on:click={() => toggleInstructions()}>
       {#if expInstruction}
-        <h3 style="margin-top:0; margin-bottom:1%;">
-          <Fa icon={faChevronDown} /> &nbsp; Instructions:
+        <h3 style="margin-top:0; margin-bottom:1%; color: #188df9">
+          <Fa icon={faChevronDown} /> &nbsp; Instructions
         </h3>
       {:else}
-        <h3 style="margin-top:0; margin-bottom:1%;">
-          <Fa icon={faChevronRight} /> &nbsp; View Instructions:
+        <h3 style="margin-top:0; margin-bottom:1%; color: #188df9">
+          <Fa icon={faChevronRight} /> &nbsp; View Instructions
         </h3>
       {/if}
     </div>
@@ -158,6 +177,7 @@
 </section>
 
 <section>
+  <p style="margin-left:5%; margin-right:5%">The response:{responseText}</p>
   {#each $prompts as prompt, index}
     {#if prompt.adding}
       <div class="prompt">
@@ -175,7 +195,10 @@
               class="prompt-text"
               style="width:100%; height: 17em;"
             />
-            <button style="float: right;">Submit and Test</button>
+            <button
+              on:click={sendPrompt(prompt.text, prompt.id)}
+              style="float: right;">Submit and Test</button
+            >
           </div>
         {/if}
       </div>
@@ -206,10 +229,6 @@
                 <p><strong>Precision:</strong> {prompt.precision}</p>
                 <p><strong>Recall:</strong> {prompt.recall}</p>
               </div>
-              <!-- <button on:click={() => toggleErrors(index)}>Error examples</button> -->
-              <!-- <a href="/examples/${prompt.id}" style="text-align:right;"
-                >View Examples</a
-              > -->
               <a
                 href={`/examples?title=${encodeURIComponent(prompt.title)}&id=${prompt.id}`}
                 style="text-align:right;"

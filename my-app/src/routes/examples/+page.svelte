@@ -158,7 +158,7 @@
     <a href={`../`}><Fa icon={faHouse} /> Back to My Prompts </a>
     <h1>Annotation Examples</h1>
     <p>Prompt {id}</p>
-    <p>{$prompts[id - 1].text}</p>
+    <p>{$prompts[$prompts.length - id].text}</p>
   </div>
 </section>
 
@@ -181,18 +181,18 @@
         </div>
 
         <div style="margin-bottom: 1.5%">
-          <label>Predicted value</label>
+          <label>Predicted value according to AI</label>
           <select bind:value={predValue}>
-            <option value="">Any</option>
+            <option value="">All</option>
             <option value="Yes">Yes</option>
             <option value="No">No</option>
           </select>
         </div>
 
         <div style="margin-bottom: 1.5%">
-          <label>True value</label>
+          <label>True value according to researcher</label>
           <select bind:value={trueValue}>
-            <option value="">Any</option>
+            <option value="">All</option>
             <option value="Yes">Yes</option>
             <option value="No">No</option>
           </select>
