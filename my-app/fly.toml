@@ -1,10 +1,10 @@
-# fly.toml app configuration file generated for my-app-billowing-snow-8810 on 2024-10-09T15:41:56-04:00
+# fly.toml app configuration file generated for my-app-twilight-cherry-2337 on 2024-10-22T10:51:31-04:00
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
-app = 'my-app-billowing-snow-8810'
-primary_region = 'ewr'
+app = 'my-app-twilight-cherry-2337'
+primary_region = 'ord'
 
 [build]
 

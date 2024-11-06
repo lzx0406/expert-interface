@@ -43,11 +43,6 @@
     "appreciation_wildlife",
     "appreciation_human",
     "call_to_action",
-    "bert_cw",
-    "bert_ch",
-    "bert_aw",
-    "bert_ah",
-    "bert_call",
   ];
 
   const mappings = {
@@ -155,7 +150,7 @@
 
 <section>
   <div class="top">
-    <a href={`../`}><Fa icon={faHouse} /> Back to My Prompts </a>
+    <a href={`../prompts`}><Fa icon={faHouse} /> Back to My Prompts </a>
     <h1>Annotation Examples</h1>
     <p>Prompt {id}</p>
     <p>{$prompts[$prompts.length - id].text}</p>
