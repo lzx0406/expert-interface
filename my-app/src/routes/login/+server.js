@@ -9,10 +9,11 @@ export async function POST({ request }) {
   try {
     // Fetch the user from the PromptWriter table by email
     const [rows] = await db.query(
-      "SELECT id, password FROM PromptWriter WHERE email = ?",
+      "SELECT id, name, password FROM PromptWriter WHERE email = ?",
       [email]
     );
 
+    // @ts-ignore
     if (rows.length === 0) {
       // User not found
       return new Response(
@@ -21,6 +22,7 @@ export async function POST({ request }) {
       );
     }
 
+    // @ts-ignore
     const user = rows[0];
     const validPassword = await bcrypt.compare(password, user.password);
 
@@ -33,9 +35,16 @@ export async function POST({ request }) {
     }
 
     // Login successful - You may set a session here if you’re using session-based authentication
-    return new Response(JSON.stringify({ message: "Login successful!" }), {
-      status: 200,
-    });
+    return new Response(
+      JSON.stringify({
+        message: "Login successful!",
+        userId: user.id,
+        userName: user.name,
+      }),
+      {
+        status: 200,
+      }
+    );
   } catch (error) {
     console.error("Error during login:", error);
     return new Response(

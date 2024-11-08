@@ -1,9 +1,9 @@
-<!-- <h1>Welcome to SvelteKit</h1>
-<p>Visit <a href="https://kit.svelte.dev">kit.svelte.dev</a> to read the documentation</p> -->
-<!-- <script lang="ts"> -->
 <script>
+  // @ts-nocheck
+
   import { writable } from "svelte/store";
   import { setContext } from "svelte";
+  import { onMount } from "svelte";
 
   import { getContext } from "svelte";
   import Fa from "svelte-fa";
@@ -14,27 +14,109 @@
     faHouse,
   } from "@fortawesome/free-solid-svg-icons";
 
-  // Retrieve the prompts store from context
-  const prompts = getContext("prompts");
+  import {
+    selectedAnnotationType,
+    userId,
+    userName,
+    prompts,
+  } from "$lib/stores";
 
   let promptList = [];
+  let prompt_id, text, prompt_type, time_submitted, metrics;
+  let adminData, admin_p_id;
 
-  // Subscribe to the store
-  $: prompts.subscribe((/** @type {any[]} */ value) => {
-    console.log("Current prompts:", value);
-    promptList = value;
+  // Fetch past prompts for the logged-in user on component mount
+  onMount(async () => {
+    const userIdValue = $userId;
+    console.log("CURRENT USER IDDDD:" + userIdValue);
+    if (!userIdValue) {
+      console.error("User ID is missing");
+      return;
+    }
+
+    try {
+      // Send GET request with userId as a query parameter
+      const response = await fetch(`/prompts?userId=${userIdValue}`);
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log("Prompts from user:", data);
+
+        prompts.set(data); // Set fetched prompts to the store
+      } else {
+        console.error("Failed to fetch prompts");
+      }
+    } catch (error) {
+      console.error("Error fetching prompts:", error);
+    }
   });
+
+  //fetch admin data
+  onMount(async () => {
+    console.log("HEREEEEEE" + $selectedAnnotationType);
+    if ($selectedAnnotationType === "call to action") {
+      admin_p_id = 1;
+    } else if ($selectedAnnotationType === "concern wildlife") {
+      admin_p_id = 2;
+    } else admin_p_id = 0;
+    try {
+      // Fetch data from the backend
+      const response = await fetch(`/api/getAdminData?prompt_id=${admin_p_id}`);
+      if (response.ok) {
+        adminData = await response.json();
+        console.log("Found admin data for type" + $selectedAnnotationType);
+      } else {
+        console.error("Failed to fetch admin data");
+      }
+    } catch (error) {
+      console.error("Error fetching admin data:", error);
+    }
+  });
+
+  let system_prompt = `
+    You are an assistant specializing in video content analysis and annotation.
+    You will be given descriptions, transcriptions, and comments on YouTube videos.
+    Your task is to answer the following question based solely on the provided information:
+
+    Does this comment on the video contain ${selectedAnnotationType}?
+
+    Respond with a single word: either "Yes" or "No" only.
+
+    Format your response EXACTLY as follows:
+    [Yes / No]
+
+    Do not add any explanations, comments, or additional information.
+  `;
+
+  let output_file = "openai_responses.csv"; // Define the output file name
+
+  async function sendPrompt(question) {
+    try {
+      const response = await fetch("/api/toOpenAI", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          data: adminData,
+          question,
+          system_prompt,
+          output_file,
+        }),
+      });
+
+      if (response.ok) {
+        console.log("Data sent to OpenAI successfully");
+      } else {
+        console.error("Failed to send data to OpenAI");
+      }
+    } catch (error) {
+      console.error("Error sending data to OpenAI:", error);
+    }
+  }
 
   function addPromptWindow() {
     const newPrompt = {
-      id: $prompts.length + 1,
-      title: `Prompt ${$prompts.length + 1}`,
       text: ``,
-      date: new Date().toLocaleDateString(),
-      accuracy: "",
-      f1Score: "",
-      precision: "",
-      recall: "",
+      metrics: {},
       showDetails: true,
       showErrors: false,
       adding: true,
@@ -60,34 +142,42 @@
    * @param {any} promptText
    * @param {string | number} index
    */
-  async function sendPrompt(promptText, index) {
-    const apiKey = "";
-    const endpoint = "https://api.openai.com/v1/chat/completions";
+  // async function sendPrompt(promptText, index) {
+  //   const apiKey = "";
+  //   const endpoint = "https://api.openai.com/v1/chat/completions";
 
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini", // or another model?
-        messages: [{ role: "user", content: promptText }],
-        max_tokens: 100,
-      }),
-    });
+  //   const response = await fetch(endpoint, {
+  //     method: "POST",
+  //     headers: {
+  //       "Content-Type": "application/json",
+  //       Authorization: `Bearer ${apiKey}`,
+  //     },
+  //     body: JSON.stringify({
+  //       model: "gpt-4o-mini", // or another model?
+  //       messages: [{ role: "user", content: promptText }],
+  //       max_tokens: 100,
+  //     }),
+  //   });
 
-    const data = await response.json();
-    responseText = data.choices[0].message.content;
+  //   const data = await response.json();
+  //   responseText = data.choices[0].message.content;
 
-    $prompts[0].adding = false;
-    $prompts = [...$prompts];
-  }
+  //   $prompts[0].adding = false;
+  //   $prompts = [...$prompts];
+  // }
 </script>
 
 <section>
   <div class="top">
-    <h1><Fa icon={faHouse} /> My Prompts</h1>
+    <h1>
+      <Fa icon={faHouse} /> <span style="color:#5facf2">{$userName}</span>'s
+      Prompts
+    </h1>
+    <p>
+      Selected Annotation Type: <span style="font-weight:bold"
+        >{$selectedAnnotationType}</span
+      >
+    </p>
     <p>
       You are training an AI to annotate your dataset by creating prompts that
       instruct the AI on how to label your data. Write clear and specific
@@ -184,8 +274,8 @@
         <!-- svelte-ignore a11y-click-events-have-key-events -->
         <!-- svelte-ignore a11y-no-static-element-interactions -->
         <div class="prompt-header" on:click={() => toggleDetails(index)}>
-          <h3>{prompt.title}</h3>
-          <p>{prompt.date}</p>
+          <h3>New Prompt</h3>
+          <!-- <p>{prompt.time_submitted}</p> -->
         </div>
         {#if prompt.showDetails}
           <div style="margin: 1% 0% 3% 0%; padding-bottom:2%">
@@ -210,11 +300,15 @@
         <!-- svelte-ignore a11y-click-events-have-key-events -->
         <div class="prompt-header" on:click={() => toggleDetails(index)}>
           {#if prompt.showDetails}
-            <h3><Fa icon={faChevronDown} /> &nbsp; {prompt.title}</h3>
+            <h3>
+              <Fa icon={faChevronDown} /> &nbsp; Prompt {prompt.prompt_id}
+            </h3>
           {:else}
-            <h3><Fa icon={faChevronRight} /> &nbsp; {prompt.title}</h3>
+            <h3>
+              <Fa icon={faChevronRight} /> &nbsp; Prompt {prompt.prompt_id}
+            </h3>
           {/if}
-          <p>{prompt.date}</p>
+          <p>{prompt.time_submitted}</p>
         </div>
 
         {#if prompt.showDetails}
@@ -224,13 +318,13 @@
               style="width: 25%; display: flex; flex-direction:column; justify-content: space-between;"
             >
               <div class="metrics">
-                <p><strong>Accuracy:</strong> {prompt.accuracy}</p>
+                <!-- <p><strong>Accuracy:</strong> {prompt.accuracy}</p>
                 <p><strong>F1 Score:</strong> {prompt.f1Score}</p>
                 <p><strong>Precision:</strong> {prompt.precision}</p>
-                <p><strong>Recall:</strong> {prompt.recall}</p>
+                <p><strong>Recall:</strong> {prompt.recall}</p> -->
               </div>
               <a
-                href={`/examples?title=${encodeURIComponent(prompt.title)}&id=${prompt.id}`}
+                href={`/examples?title=${encodeURIComponent(prompt.prompt_id)}&id=${prompt.prompt_id}`}
                 style="text-align:right;"
                 >Error Examples <Fa icon={faChevronRight} /></a
               >

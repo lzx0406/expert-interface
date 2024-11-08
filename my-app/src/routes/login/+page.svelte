@@ -1,5 +1,6 @@
 <script>
   import { goto } from "$app/navigation";
+  import { userId, userName } from "$lib/stores";
   let email = "";
   let password = "";
   let errorMessage = "";
@@ -20,8 +21,15 @@
       });
 
       if (response.ok) {
+        const data = await response.json();
+        // console.log("Getting the DATAAA!!");
+        // console.log(data);
+
+        // Set the user ID in the store
+        userId.set(data.userId);
+        userName.set(data.userName);
         // Redirect to the home page or a protected route
-        goto("/prompts"); // Change "/dashboard" to whatever protected route you want to use
+        goto("/prompts");
       } else {
         const errorData = await response.json();
         errorMessage = errorData.message || "Login failed. Please try again.";

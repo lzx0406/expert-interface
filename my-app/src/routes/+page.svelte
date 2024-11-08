@@ -1,7 +1,13 @@
 <script>
   import { goto } from "$app/navigation";
+  import { selectedAnnotationType } from "$lib/stores";
 
-  let selectedAnnotationType = "";
+  /**
+   * @param {string} type
+   */
+  function setAnnotation(type) {
+    selectedAnnotationType.set(type);
+  }
 
   function navigateToLogin() {
     goto("/login");
@@ -14,32 +20,23 @@
 
 <main>
   <h1>Welcome to the AI Data Annotation Application</h1>
-  <p style="margin:20%">
-    This application helps you train an AI to annotate your dataset by creating
-    prompts that instruct the AI on how to label your data analyze video
-    comments. <br />
-    With the initial iteration of the application, you can explore how to improve
-    AI annotation quality in understanding wildlife conservation efforts in the context
-    of YouTube video and comments.
-  </p>
 
-  <!-- Radio button selection for annotation type -->
   <div class="annotation-type">
     <label>
       <input
         type="radio"
         name="annotationType"
-        value="conservation"
-        bind:group={selectedAnnotationType}
+        value="concern wildlife"
+        on:change={() => setAnnotation("concern wildlife")}
       />
-      Annotate for Conservation
+      Annotate for Concern for Wildlife
     </label>
     <label>
       <input
         type="radio"
         name="annotationType"
-        value="call-to-action"
-        bind:group={selectedAnnotationType}
+        value="call to action"
+        on:change={() => setAnnotation("call to action")}
       />
       Annotate for Call to Action
     </label>
@@ -49,6 +46,15 @@
     <button on:click={navigateToLogin}>Log In</button>
     <button on:click={navigateToSignup}>Sign Up</button>
   </div>
+
+  <p style="margin:10% 20% 0% 20%">
+    This application helps you train an AI to annotate your dataset by creating
+    prompts that instruct the AI on how to label your data analyze video
+    comments. <br />
+    With the initial iteration of the application, you can explore how to improve
+    AI annotation quality in understanding wildlife conservation efforts in the context
+    of YouTube video and comments.
+  </p>
 </main>
 
 <style>
@@ -62,7 +68,7 @@
   }
 
   .annotation-type {
-    margin-top: 20px;
+    margin-top: 40px;
   }
 
   .annotation-type label {
@@ -71,7 +77,7 @@
   }
 
   .actions {
-    margin-top: 20px;
+    margin-top: 40px;
   }
 
   button {

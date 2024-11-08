@@ -1,4 +1,3 @@
-<!-- <h1>Welcome to examples biach</h1> -->
 <script>
   // @ts-nocheck
 
@@ -18,8 +17,15 @@
     faToggleOff,
   } from "@fortawesome/free-solid-svg-icons";
 
-  const prompts = getContext("prompts");
+  import {
+    selectedAnnotationType,
+    userId,
+    userName,
+    prompts,
+  } from "$lib/stores";
+  // const prompts = getContext("prompts");
   let promptList = [];
+  let exampleData = [];
 
   // Subscribe to the store
   $: prompts.subscribe((/** @type {any[]} */ value) => {
@@ -58,18 +64,23 @@
   let trueValue = "";
   let showWrongPredictions = false;
 
-  // Load the CSV file on component mount
   onMount(async () => {
-    try {
-      const response = await fetch("/combined_data.csv");
-      const text = await response.text();
-      const data = csvParse(text);
-      csvData.set(data);
+    if (!id) {
+      console.error("Prompt ID is missing");
+      return;
+    }
 
-      //No filters initially, show everything
-      filteredData = [...data];
+    try {
+      // Fetch data from the backend
+      const response = await fetch(`/api/getExamples?prompt_id=${id}`);
+      if (response.ok) {
+        exampleData = await response.json();
+        filteredData = [...exampleData];
+      } else {
+        console.error("Failed to fetch examples");
+      }
     } catch (error) {
-      console.error("Error loading CSV file:", error);
+      console.error("Error fetching examples:", error);
     }
   });
 
@@ -153,7 +164,8 @@
     <a href={`../prompts`}><Fa icon={faHouse} /> Back to My Prompts </a>
     <h1>Annotation Examples</h1>
     <p>Prompt {id}</p>
-    <p>{$prompts[$prompts.length - id].text}</p>
+    <p>{$prompts[id - 1].time_submitted}</p>
+    <p>{$prompts[id - 1].text}</p>
   </div>
 </section>
 
@@ -166,14 +178,14 @@
 
     <div style="display: flex; justify-content: space-between;">
       <div class="adjust-filters">
-        <div style="margin-bottom: 1.5%">
+        <!-- <div style="margin-bottom: 1.5%">
           <label>Label</label>
           <select bind:value={selectedLabel}>
             {#each columnHeaders as label}
               <option value={label}>{label}</option>
             {/each}
           </select>
-        </div>
+        </div> -->
 
         <div style="margin-bottom: 1.5%">
           <label>Predicted value according to AI</label>
@@ -222,7 +234,9 @@
 
   <div class="all-data">
     <h2>
-      Filtered Examples for <span style="color:#188df9">{selectedLabel} </span>
+      Filtered Examples for <span style="color:#188df9"
+        >{$selectedAnnotationType}
+      </span>
     </h2>
     <!-- <ul>
       {#each filteredData as row}
@@ -241,7 +255,7 @@
           </tr>
         </thead>
         <tbody>
-          {#each filteredData as row, i}
+          <!-- {#each filteredData as row, i}
             <tr>
               <td>{row.index}</td>
               <td
@@ -252,6 +266,23 @@
               <td>{row.comment}</td>
               <td>{isYesPred(row[mappings[selectedLabel]]) ? "Yes" : "No"}</td>
               <td>{isYes(row[selectedLabel]) ? "Yes" : "No"}</td>
+            </tr>
+          {/each} -->
+          {#each exampleData as row}
+            <tr>
+              <td>{row.annotation_id}</td>
+              <td>
+                <a
+                  href="https://www.youtube.com/watch?v={row.video_url}"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {row.video_url}
+                </a>
+              </td>
+              <td>{row.comment}</td>
+              <td>{row.true_value ? "Yes" : "No"}</td>
+              <td>{row.predicted_value ? "Yes" : "No"}</td>
             </tr>
           {/each}
         </tbody>
