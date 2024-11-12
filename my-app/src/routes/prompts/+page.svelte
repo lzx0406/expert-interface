@@ -2,8 +2,9 @@
   // @ts-nocheck
 
   import { writable } from "svelte/store";
+  import { get } from "svelte/store";
   import { setContext } from "svelte";
-  import { onMount } from "svelte";
+  import { onMount, onDestroy } from "svelte";
 
   import { getContext } from "svelte";
   import Fa from "svelte-fa";
@@ -24,32 +25,56 @@
   let promptList = [];
   let prompt_id, text, prompt_type, time_submitted, metrics;
   let adminData, admin_p_id;
+  let waitingForAnnotation = false;
+  let timeElapsed = 0;
+  let minutes, seconds, formattedTime;
+  let interval;
 
   // Fetch past prompts for the logged-in user on component mount
-  onMount(async () => {
-    const userIdValue = $userId;
-    console.log("CURRENT USER IDDDD:" + userIdValue);
+  onMount(() => {
+    fetchPastPrompts();
+  });
+
+  // Backend function to handle fetching prompts with metrics
+  async function fetchPastPrompts() {
+    const userIdValue = get(userId); // Get the latest value of userId
+
     if (!userIdValue) {
       console.error("User ID is missing");
       return;
     }
 
     try {
-      // Send GET request with userId as a query parameter
+      // Fetch prompts for the user
       const response = await fetch(`/prompts?userId=${userIdValue}`);
 
       if (response.ok) {
         const data = await response.json();
-        console.log("Prompts from user:", data);
 
-        prompts.set(data); // Set fetched prompts to the store
+        // Process each prompt to ensure metrics are available
+        const updatedPrompts = data.map((prompt) => {
+          // Parse the metrics field if it is stored as JSON
+          if (typeof prompt.metrics === "string") {
+            try {
+              prompt.metrics = JSON.parse(prompt.metrics);
+            } catch (error) {
+              console.error("Error parsing metrics JSON:", error);
+            }
+          }
+          return prompt;
+        });
+
+        // Update the prompts store with the updated data containing metrics
+        prompts.set(updatedPrompts);
+
+        console.log("Updated prompts with metrics:", updatedPrompts);
       } else {
         console.error("Failed to fetch prompts");
       }
     } catch (error) {
       console.error("Error fetching prompts:", error);
     }
-  });
+  }
 
   //fetch admin data
   onMount(async () => {
@@ -91,7 +116,22 @@
   let output_file = "openai_responses.csv"; // Define the output file name
 
   async function sendPrompt(question) {
+    // Retrieve the latest values from Svelte stores
+    const annotationTypeValue = get(selectedAnnotationType);
+    const userIdValue = get(userId);
+    console.log("IN PROMPTS GOT ANNO TYPE:" + annotationTypeValue);
+    console.log("IN PROMPTS also GOT ID: " + userIdValue);
+
+    if (!annotationTypeValue || !userIdValue) {
+      console.error("Annotation type or user ID is missing.");
+      return;
+    }
+
     try {
+      // Set waitingForAnnotation to true to start the timer
+      waitingForAnnotation = true;
+
+      // Send request to the server
       const response = await fetch("/api/toOpenAI", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -99,17 +139,28 @@
           data: adminData,
           question,
           system_prompt,
-          output_file,
+          prompt_type: annotationTypeValue,
+          writer_id: userIdValue,
         }),
       });
 
       if (response.ok) {
-        console.log("Data sent to OpenAI successfully");
+        const responseData = await response.json();
+        const newPromptId = responseData.prompt_id;
+        console.log(
+          "Data sent to OpenAI successfully, new prompt ID:",
+          newPromptId
+        );
+
+        // Refresh past prompts after a successful request
+        fetchPastPrompts();
       } else {
         console.error("Failed to send data to OpenAI");
       }
     } catch (error) {
       console.error("Error sending data to OpenAI:", error);
+    } finally {
+      waitingForAnnotation = false; // Stop the timer
     }
   }
 
@@ -138,33 +189,46 @@
 
   let responseText = "";
 
-  /**
-   * @param {any} promptText
-   * @param {string | number} index
-   */
-  // async function sendPrompt(promptText, index) {
-  //   const apiKey = "";
-  //   const endpoint = "https://api.openai.com/v1/chat/completions";
+  function manageTimer() {
+    if (waitingForAnnotation) {
+      timeElapsed = 0; // Reset timer at the start
+      interval = setInterval(() => {
+        timeElapsed += 1;
+      }, 1000);
+    } else {
+      clearInterval(interval);
+    }
+  }
 
-  //   const response = await fetch(endpoint, {
-  //     method: "POST",
-  //     headers: {
-  //       "Content-Type": "application/json",
-  //       Authorization: `Bearer ${apiKey}`,
-  //     },
-  //     body: JSON.stringify({
-  //       model: "gpt-4o-mini", // or another model?
-  //       messages: [{ role: "user", content: promptText }],
-  //       max_tokens: 100,
-  //     }),
-  //   });
+  // Watch waitingForAnnotation to start or stop the timer
+  $: if (waitingForAnnotation) {
+    manageTimer();
+  }
 
-  //   const data = await response.json();
-  //   responseText = data.choices[0].message.content;
+  // Format time as MM:SS
+  $: {
+    minutes = Math.floor(timeElapsed / 60);
+  }
+  $: {
+    seconds = timeElapsed % 60;
+  }
+  $: {
+    formattedTime = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+  }
 
-  //   $prompts[0].adding = false;
-  //   $prompts = [...$prompts];
-  // }
+  onDestroy(() => {
+    clearInterval(interval); // Ensure interval is cleared on component destruction
+  });
+
+  function formatTimeSubmitted(time) {
+    const date = new Date(time);
+    formattedTime = date.toLocaleString("en-US", {
+      dateStyle: "medium",
+      timeStyle: "medium",
+      hour12: false,
+    });
+    return formattedTime;
+  }
 </script>
 
 <section>
@@ -275,7 +339,9 @@
         <!-- svelte-ignore a11y-no-static-element-interactions -->
         <div class="prompt-header" on:click={() => toggleDetails(index)}>
           <h3>New Prompt</h3>
-          <!-- <p>{prompt.time_submitted}</p> -->
+          {#if waitingForAnnotation}
+            <p>AI is annotating data. Time elapsed: {formattedTime}</p>
+          {/if}
         </div>
         {#if prompt.showDetails}
           <div style="margin: 1% 0% 3% 0%; padding-bottom:2%">
@@ -285,9 +351,8 @@
               class="prompt-text"
               style="width:100%; height: 17em;"
             />
-            <button
-              on:click={sendPrompt(prompt.text, prompt.id)}
-              style="float: right;">Submit and Test</button
+            <button on:click={sendPrompt(prompt.text)} style="float: right;"
+              >Submit and Test</button
             >
           </div>
         {/if}
@@ -308,7 +373,7 @@
               <Fa icon={faChevronRight} /> &nbsp; Prompt {prompt.prompt_id}
             </h3>
           {/if}
-          <p>{prompt.time_submitted}</p>
+          <p>{formatTimeSubmitted(prompt.time_submitted)}</p>
         </div>
 
         {#if prompt.showDetails}
@@ -318,10 +383,14 @@
               style="width: 25%; display: flex; flex-direction:column; justify-content: space-between;"
             >
               <div class="metrics">
-                <!-- <p><strong>Accuracy:</strong> {prompt.accuracy}</p>
-                <p><strong>F1 Score:</strong> {prompt.f1Score}</p>
-                <p><strong>Precision:</strong> {prompt.precision}</p>
-                <p><strong>Recall:</strong> {prompt.recall}</p> -->
+                <!-- Conditionally display metrics if they exist -->
+                {#if prompt.metrics}
+                  <p><strong>Accuracy:</strong> {prompt.metrics.accuracy}</p>
+                  <p><strong>Precision:</strong> {prompt.metrics.precision}</p>
+                  <p><strong>Recall:</strong> {prompt.metrics.recall}</p>
+                {:else}
+                  <p>Loading metrics...</p>
+                {/if}
               </div>
               <a
                 href={`/examples?title=${encodeURIComponent(prompt.prompt_id)}&id=${prompt.prompt_id}`}

@@ -37,29 +37,8 @@
   const title = query.get("title");
   const id = query.get("id");
 
-  // Store for the parsed CSV data
-  const csvData = writable([]);
-  /**
-   * @type {any[]}
-   */
   let filteredData = [];
-  let columnHeaders = [
-    "concern_wildlife",
-    "concern_human",
-    "appreciation_wildlife",
-    "appreciation_human",
-    "call_to_action",
-  ];
 
-  const mappings = {
-    concern_wildlife: "bert_cw",
-    concern_human: "bert_ch",
-    appreciation_wildlife: "bert_aw",
-    appreciation_human: "bert_ah",
-    call_to_action: "bert_call",
-  };
-
-  let selectedLabel = columnHeaders[0]; // Default label
   let predValue = "";
   let trueValue = "";
   let showWrongPredictions = false;
@@ -83,6 +62,16 @@
       console.error("Error fetching examples:", error);
     }
   });
+
+  function formatTimeSubmitted(time) {
+    const date = new Date(time);
+    let formattedTime = date.toLocaleString("en-US", {
+      dateStyle: "medium",
+      timeStyle: "medium",
+      hour12: false,
+    });
+    return formattedTime;
+  }
 
   /**
    * @param {number} value
@@ -121,40 +110,36 @@
   }
 
   function filterData() {
-    csvData.subscribe((data) => {
-      filteredData = data.filter((row) => {
-        let include = true;
+    filteredData = exampleData.filter((row) => {
+      // console.log("FILTERINGGGGGGGG");
+      let include = true;
 
-        /**
-         * @type {number}
-         */
-        const truth = row[selectedLabel];
-        // @ts-ignore
-        const prediction = row[mappings[selectedLabel]];
+      const truth = row["true_value"];
+      console.log(truth);
+      const prediction = row["predicted_value"];
 
-        // Filter based on prediction value (Yes/No) - only 0/1?
-        if (predValue) {
-          if (predValue === "Yes") {
-            include = include && isYesPred(prediction);
-          } else if (predValue === "No") {
-            include = include && isNoPred(prediction);
-          }
+      if (predValue) {
+        if (predValue === "Yes") {
+          include = include && prediction == 1;
+        } else if (predValue === "No") {
+          include = include && prediction == 0;
         }
+      }
 
-        if (trueValue) {
-          if (trueValue === "Yes") {
-            include = include && isYes(truth);
-          } else if (trueValue === "No") {
-            include = include && isNo(truth);
-          }
+      if (trueValue) {
+        if (trueValue === "Yes") {
+          include = include && truth == 1;
+        } else if (trueValue === "No") {
+          include = include && truth == 0;
         }
+      }
 
-        if (showWrongPredictions) {
-          include = include && isYes(truth) != isYesPred(prediction);
-        }
+      if (showWrongPredictions) {
+        include = include && truth != prediction;
+      }
 
-        return include;
-      });
+      console.log(include);
+      return include;
     });
   }
 </script>
@@ -164,7 +149,7 @@
     <a href={`../prompts`}><Fa icon={faHouse} /> Back to My Prompts </a>
     <h1>Annotation Examples</h1>
     <p>Prompt {id}</p>
-    <p>{$prompts[id - 1].time_submitted}</p>
+    <p>{formatTimeSubmitted($prompts[id - 1].time_submitted)}</p>
     <p>{$prompts[id - 1].text}</p>
   </div>
 </section>
@@ -238,11 +223,6 @@
         >{$selectedAnnotationType}
       </span>
     </h2>
-    <!-- <ul>
-      {#each filteredData as row}
-        <li>{row.comment} (value: {row[selectedLabel]})</li>
-      {/each}
-    </ul> -->
     {#if filteredData.length > 0}
       <table class="styled-table">
         <thead>
@@ -255,20 +235,7 @@
           </tr>
         </thead>
         <tbody>
-          <!-- {#each filteredData as row, i}
-            <tr>
-              <td>{row.index}</td>
-              <td
-                ><a href="https://www.youtube.com/watch?v={row.video_url}"
-                  >{row.video_url}</a
-                ></td
-              >
-              <td>{row.comment}</td>
-              <td>{isYesPred(row[mappings[selectedLabel]]) ? "Yes" : "No"}</td>
-              <td>{isYes(row[selectedLabel]) ? "Yes" : "No"}</td>
-            </tr>
-          {/each} -->
-          {#each exampleData as row}
+          {#each filteredData as row}
             <tr>
               <td>{row.annotation_id}</td>
               <td>

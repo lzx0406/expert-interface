@@ -22,7 +22,6 @@ export async function GET({ url }) {
     const [rows] = await db.query(
       `SELECT 
         Prompt.prompt_type,
-        Prompt.prompt_id,
         Video.url AS video_url, 
         Video.description AS description, 
         Video.transcript AS transcript, 
@@ -40,7 +39,7 @@ export async function GET({ url }) {
     );
 
     // @ts-ignore
-    console.log("Sample of admin data:", rows.slice(0, 5));
+    // console.log("Sample of admin data:", rows.slice(0, 5));
     return new Response(JSON.stringify(rows), { status: 200 });
   } catch (error) {
     console.error("Error fetching examples:", error);

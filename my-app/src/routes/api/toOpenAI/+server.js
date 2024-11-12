@@ -1,21 +1,16 @@
 import openai from "openai";
-import fs from "fs";
-import path from "path";
+import { db } from "$lib/database.js"; // Ensure this file provides a MySQL connection with transaction support
 
 // Set the OpenAI API key
-// @ts-ignore
 const apiKey = "";
 
 /**
- * Parses the OpenAI response text to a lowercase string "true" or "false" value.
+ * Parses the OpenAI response text to "true" or "false" as a string.
  * @param {string} responseText - The text response from OpenAI.
- * @returns {string} - `"true"` if the response suggests affirmative action, `"false"` otherwise.
+ * @returns {string} - `"true"` if affirmative, `"false"` otherwise.
  */
 function parseResponse(responseText) {
   const lowerResponse = responseText.toLowerCase().trim();
-
-  // Log the response text for debugging
-  console.log("OpenAI Response:", lowerResponse);
 
   if (["yes", "true", "1"].includes(lowerResponse)) {
     return "true";
@@ -30,11 +25,29 @@ function parseResponse(responseText) {
 
 // @ts-ignore
 export async function POST({ request }) {
-  const { data, question, system_prompt, output_file } = await request.json();
-  const outputPath = path.join(process.cwd(), "static/exports", output_file);
+  const { data, question, system_prompt, prompt_type, writer_id } =
+    await request.json();
+  let connection;
+  console.log("IN SERVER RECEIVED:" + prompt_type + writer_id);
 
   try {
-    // Loop through each item in data
+    // Begin a transaction to ensure all inserts are either fully completed or rolled back in case of an error
+    connection = await db.getConnection();
+
+    await connection.beginTransaction();
+
+    // 1. Insert into Prompt (only once for the entire batch)
+    const [promptResult] = await connection.query(
+      `INSERT INTO Prompt (text, prompt_type, time_submitted, writer_id) VALUES (?, ?, NOW(), ?)`,
+      [question, prompt_type, writer_id]
+    );
+    // @ts-ignore
+    const newPromptId = promptResult.insertId;
+    console.log("New Prompt ID:", newPromptId);
+
+    const videoMap = new Map();
+
+    // Loop through each item in data, each representing a set of related prompt, video, comment, and annotation data
     for (const item of data) {
       const {
         prompt_type,
@@ -43,23 +56,24 @@ export async function POST({ request }) {
         transcript,
         comment,
         true_value,
-        annotation_id,
+        original_pred,
+        original_annotation_id,
       } = item;
+
+      let responseContent;
+      let predicted_value;
 
       // Construct the base prompt with video and comment information
       const base_prompt = `Video description: ${description}\n Video transcription: ${transcript}\n Question: ${question}\n Comment: ${comment}`;
-
       const messages = [
         { role: "system", content: system_prompt },
         { role: "user", content: base_prompt },
       ];
 
+      // Call OpenAI API and retry if needed
       let retries = 3;
-      let responseContent;
-
       while (retries > 0) {
         try {
-          // Use fetch to directly call the OpenAI API
           const response = await fetch(
             "https://api.openai.com/v1/chat/completions",
             {
@@ -69,46 +83,104 @@ export async function POST({ request }) {
                 Authorization: `Bearer ${apiKey}`,
               },
               body: JSON.stringify({
-                model: "gpt-4", // Adjust model name if necessary
+                model: "gpt-4o-mini",
                 messages: messages,
-                temperature: 0.2,
+                temperature: 0,
               }),
             }
           );
 
           const gptResponse = await response.json();
-          responseContent = gptResponse.choices[0].message.content.trim();
-          retries = 0; // Exit the retry loop if successful
+          console.log(gptResponse);
+          // responseContent = gptResponse.choices[0].message.content.trim();
+          // predicted_value = parseResponse(responseContent);
+          // retries = 0;
+
+          // Check if choices array is present
+          if (
+            !gptResponse.choices ||
+            !gptResponse.choices[0] ||
+            !gptResponse.choices[0].message
+          ) {
+            console.error(
+              "Unexpected OpenAI API response format:",
+              gptResponse
+            );
+            throw new Error(
+              "OpenAI API response did not contain expected 'choices' data."
+            );
+          }
         } catch (error) {
           console.error("Error calling OpenAI API:", error);
-          if (retries > 1) {
-            retries -= 1;
-            await new Promise((resolve) => setTimeout(resolve, 150000)); // Wait 150 seconds before retrying
-          } else {
-            throw error; // Rethrow error if no retries left
-          }
+          if (--retries === 0) throw error;
+          await new Promise((resolve) => setTimeout(resolve, 150000)); // Retry after delay
         }
       }
 
-      console.log(responseContent);
+      const videoKey = `${video_url}_${newPromptId}`;
+      let videoId;
+      // 2. Insert into Video
+      // const [videoResult] = await connection.query(
+      //   `INSERT INTO Video (url, description, transcript, prompt_id) VALUES (?, ?, ?, ?)`,
+      //   [video_url, description, transcript, newPromptId]
+      // );
+      // // @ts-ignore
+      // const newVideoId = videoResult.insertId;
 
-      // Parse the response to determine the predicted value
-      const predicted_value = parseResponse(responseContent);
+      if (videoMap.has(videoKey)) {
+        // Use the existing video_id if we have already inserted this video with the same prompt
+        videoId = videoMap.get(videoKey);
+      } else {
+        // 2. Insert into Video (only once per unique video URL and prompt ID combination)
+        const [videoResult] = await connection.query(
+          `INSERT INTO Video (url, description, transcript, source, prompt_id) VALUES (?, ?, ?, ?, ?)`,
+          [video_url, description, transcript, "YouTube", newPromptId]
+        );
+        // @ts-ignore
+        videoId = videoResult.insertId;
+        videoMap.set(videoKey, videoId); // Store video_id to avoid duplicate inserts
+        console.log(
+          "New Video ID:",
+          videoId,
+          "for URL:",
+          video_url,
+          "and Prompt ID:",
+          newPromptId
+        );
+      }
 
-      // Write the response to the output file in a structured format
-      fs.appendFileSync(outputPath, `Annotation ID: ${annotation_id}\n`);
-      fs.appendFileSync(outputPath, `Video URL: ${video_url}\n`);
-      fs.appendFileSync(outputPath, `Comment: ${comment}\n`);
-      fs.appendFileSync(outputPath, `True Value: ${true_value}\n`);
-      fs.appendFileSync(outputPath, `Predicted Value: ${predicted_value}\n\n`);
+      // 3. Insert into Comment
+      const [commentResult] = await connection.query(
+        `INSERT INTO Comment (text, video_id, prompt_id) VALUES (?, ?, ?)`,
+        [comment, videoId, newPromptId]
+      );
+      // @ts-ignore
+      const newCommentId = commentResult.insertId;
+
+      // 4. Insert into Annotation
+      await connection.query(
+        `INSERT INTO Annotation (true_value, predicted_value, comment_id, prompt_id) VALUES (?, ?, ?, ?)`,
+        [true_value, predicted_value, newCommentId, newPromptId]
+      );
     }
 
+    // Commit the transaction after successfully inserting all records
+    await connection.commit();
+
     return new Response(
-      JSON.stringify({ message: "Data sent to OpenAI successfully" }),
+      JSON.stringify({
+        message: "Data processed and saved to database successfully",
+        prompt_id: newPromptId,
+      }),
       { status: 200 }
     );
   } catch (error) {
     console.error("Error processing data:", error);
+
+    // Rollback transaction in case of an error to maintain data integrity
+    // @ts-ignore
+    await connection.rollback();
+
     return new Response(JSON.stringify({ message: "Failed to process data" }), {
       status: 500,
     });
