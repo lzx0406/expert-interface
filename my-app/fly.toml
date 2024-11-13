@@ -1,9 +1,9 @@
-# fly.toml app configuration file generated for my-app-spring-wind-2520 on 2024-11-11T14:00:29-05:00
+# fly.toml app configuration file generated for my-app-holy-forest-3609 on 2024-11-12T16:43:25-05:00
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
-app = 'my-app-spring-wind-2520'
+app = 'my-app-holy-forest-3609'
 primary_region = 'ord'
 
 [build]
@@ -15,6 +15,9 @@ primary_region = 'ord'
   auto_start_machines = true
   min_machines_running = 0
   processes = ['app']
+
+[env]
+  BODY_SIZE_LIMIT = 4710457
 
 [[vm]]
   memory = '2gb'

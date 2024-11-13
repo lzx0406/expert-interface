@@ -23,15 +23,14 @@
     userName,
     prompts,
   } from "$lib/stores";
-  // const prompts = getContext("prompts");
   let promptList = [];
   let exampleData = [];
 
   // Subscribe to the store
-  $: prompts.subscribe((/** @type {any[]} */ value) => {
-    console.log("Current prompts:", value);
-    promptList = value;
-  });
+  // $: prompts.subscribe((/** @type {any[]} */ value) => {
+  //   console.log("Current prompts:", value);
+  //   promptList = value;
+  // });
 
   const query = $page.url.searchParams;
   const title = query.get("title");
@@ -42,8 +41,14 @@
   let predValue = "";
   let trueValue = "";
   let showWrongPredictions = false;
+  let textP, timeP;
 
   onMount(async () => {
+    console.log("MOUNTINGGGGGGG");
+    console.log("Current prompts:", $prompts);
+    [textP, timeP] = getPromptInfo(id);
+    console.log(textP);
+
     if (!id) {
       console.error("Prompt ID is missing");
       return;
@@ -73,40 +78,15 @@
     return formattedTime;
   }
 
-  /**
-   * @param {number} value
-   */
-  function isYes(value) {
-    if (value == 2 || value == 3) {
-      console.log("Is YES");
-      return true;
+  function getPromptInfo(id) {
+    let textP, timeP;
+    for (const oneP of $prompts) {
+      if (oneP.prompt_id == id) {
+        textP = oneP.text;
+        timeP = oneP.time_submitted;
+      }
     }
-    return false;
-  }
-
-  /**
-   * @param {number} value
-   */
-  function isNo(value) {
-    if (value == 0 || value == 1) {
-      console.log("Is NOO");
-      return true;
-    }
-    return false;
-  }
-
-  /**
-   * @param {number} value
-   */
-  function isYesPred(value) {
-    return value == 1;
-  }
-
-  /**
-   * @param {number} value
-   */
-  function isNoPred(value) {
-    return value == 0;
+    return [textP, timeP];
   }
 
   function filterData() {
@@ -120,17 +100,17 @@
 
       if (predValue) {
         if (predValue === "Yes") {
-          include = include && prediction == 1;
+          include = include && prediction;
         } else if (predValue === "No") {
-          include = include && prediction == 0;
+          include = include && prediction;
         }
       }
 
       if (trueValue) {
         if (trueValue === "Yes") {
-          include = include && truth == 1;
+          include = include && truth;
         } else if (trueValue === "No") {
-          include = include && truth == 0;
+          include = include && truth;
         }
       }
 
@@ -149,8 +129,8 @@
     <a href={`../prompts`}><Fa icon={faHouse} /> Back to My Prompts </a>
     <h1>Annotation Examples</h1>
     <p>Prompt {id}</p>
-    <p>{formatTimeSubmitted($prompts[id - 1].time_submitted)}</p>
-    <p>{$prompts[id - 1].text}</p>
+    <p>{formatTimeSubmitted(timeP)}</p>
+    <p>{textP}</p>
   </div>
 </section>
 

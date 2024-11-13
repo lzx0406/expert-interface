@@ -5,16 +5,17 @@ import { db } from "$lib/database.js"; // Ensure this file provides a MySQL conn
 const apiKey = "";
 
 /**
- * Parses the OpenAI response text to "true" or "false" as a string.
- * @param {string} responseText - The text response from OpenAI.
- * @returns {string} - `"true"` if affirmative, `"false"` otherwise.
+ * @param {string} responseText
  */
 function parseResponse(responseText) {
-  const lowerResponse = responseText.toLowerCase().trim();
+  const lowerResponse = responseText
+    .replace(/[\[\]]/g, "")
+    .toLowerCase()
+    .trim();
 
   if (["yes", "true", "1"].includes(lowerResponse)) {
     return "true";
-  } else if (["no", "false", "0"].includes(lowerResponse)) {
+  } else if (["no", "false", "0", "vague"].includes(lowerResponse)) {
     return "false";
   } else {
     throw new Error(
@@ -46,6 +47,8 @@ export async function POST({ request }) {
     console.log("New Prompt ID:", newPromptId);
 
     const videoMap = new Map();
+
+    // console.log("WE LOG DATA" + data);
 
     // Loop through each item in data, each representing a set of related prompt, video, comment, and annotation data
     for (const item of data) {
@@ -91,10 +94,11 @@ export async function POST({ request }) {
           );
 
           const gptResponse = await response.json();
-          console.log(gptResponse);
-          // responseContent = gptResponse.choices[0].message.content.trim();
-          // predicted_value = parseResponse(responseContent);
-          // retries = 0;
+          // console.log(gptResponse);
+          responseContent = gptResponse.choices[0].message.content.trim();
+          predicted_value = parseResponse(responseContent);
+          // console.log(predicted_value);
+          retries = 0;
 
           // Check if choices array is present
           if (
@@ -120,13 +124,6 @@ export async function POST({ request }) {
       const videoKey = `${video_url}_${newPromptId}`;
       let videoId;
       // 2. Insert into Video
-      // const [videoResult] = await connection.query(
-      //   `INSERT INTO Video (url, description, transcript, prompt_id) VALUES (?, ?, ?, ?)`,
-      //   [video_url, description, transcript, newPromptId]
-      // );
-      // // @ts-ignore
-      // const newVideoId = videoResult.insertId;
-
       if (videoMap.has(videoKey)) {
         // Use the existing video_id if we have already inserted this video with the same prompt
         videoId = videoMap.get(videoKey);
@@ -158,9 +155,13 @@ export async function POST({ request }) {
       const newCommentId = commentResult.insertId;
 
       // 4. Insert into Annotation
+      const booleanPredictedValue = predicted_value === "true" ? 1 : 0;
       await connection.query(
         `INSERT INTO Annotation (true_value, predicted_value, comment_id, prompt_id) VALUES (?, ?, ?, ?)`,
-        [true_value, predicted_value, newCommentId, newPromptId]
+        [true_value, booleanPredictedValue, newCommentId, newPromptId]
+      );
+      console.log(
+        "INSERTED:" + true_value + booleanPredictedValue + predicted_value
       );
     }
 

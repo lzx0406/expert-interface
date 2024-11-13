@@ -7,27 +7,27 @@ console.log("DB_NAME:", process.env.DB_NAME);
 console.log("DB_USER:", process.env.DB_USER);
 // Avoid logging DB_PASSWORD for security reasons
 
-export const db = mysql.createPool({
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-  port: 3306,
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0,
-});
-
-// @ts-ignore
 // export const db = mysql.createPool({
-//   host: "aiexpertsdb.ch0mqku8apof.us-east-2.rds.amazonaws.com", // Your RDS endpoint
-//   user: "admin", // Your RDS username
-//   password: "", // Your RDS password
-//   database: "aiexpertsdb", // The database you created
+//   host: process.env.DB_HOST,
+//   user: process.env.DB_USER,
+//   password: process.env.DB_PASSWORD,
+//   database: process.env.DB_NAME,
+//   port: 3306,
 //   waitForConnections: true,
 //   connectionLimit: 10,
 //   queueLimit: 0,
 // });
+
+// @ts-ignore
+export const db = mysql.createPool({
+  host: "aiexpertsdb.ch0mqku8apof.us-east-2.rds.amazonaws.com",
+  user: "admin",
+  password: "", // Your RDS password
+  database: "aiexpertsdb", // The database you created
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0,
+});
 
 // import {
 //   SecretsManagerClient,

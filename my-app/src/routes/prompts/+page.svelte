@@ -120,7 +120,7 @@
     const annotationTypeValue = get(selectedAnnotationType);
     const userIdValue = get(userId);
     console.log("IN PROMPTS GOT ANNO TYPE:" + annotationTypeValue);
-    console.log("IN PROMPTS also GOT ID: " + userIdValue);
+    console.log("IN PROMPTS also GOT USER ID: " + userIdValue);
 
     if (!annotationTypeValue || !userIdValue) {
       console.error("Annotation type or user ID is missing.");
