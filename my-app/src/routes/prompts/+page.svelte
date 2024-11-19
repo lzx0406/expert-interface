@@ -6,6 +6,8 @@
   import { setContext } from "svelte";
   import { onMount, onDestroy } from "svelte";
 
+  import fs from "fs/promises"; // For writing JSONL files
+
   import { getContext } from "svelte";
   import Fa from "svelte-fa";
   import {
@@ -29,6 +31,8 @@
   let timeElapsed = 0;
   let minutes, seconds, formattedTime;
   let interval;
+
+  let showPopup = false;
 
   // Fetch past prompts for the logged-in user on component mount
   onMount(() => {
@@ -113,17 +117,99 @@
     Do not add any explanations, comments, or additional information.
   `;
 
-  let output_file = "openai_responses.csv"; // Define the output file name
+  function splitData(data) {
+    const total = data.length;
+
+    // Calculate split sizes
+    const trainSize = Math.floor(total * 0.8);
+    const validationSize = Math.floor(total * 0.1);
+
+    // Shuffle data
+    const shuffledData = [...data].sort(() => Math.random() - 0.5);
+
+    // Split data
+    const trainingSet = shuffledData.slice(0, trainSize);
+    const validationSet = shuffledData.slice(
+      trainSize,
+      trainSize + validationSize
+    );
+    const testSet = shuffledData.slice(trainSize + validationSize);
+
+    return { trainingSet, validationSet, testSet };
+  }
 
   async function sendPrompt(question) {
+    showPopup = false;
+
     // Retrieve the latest values from Svelte stores
     const annotationTypeValue = get(selectedAnnotationType);
     const userIdValue = get(userId);
-    console.log("IN PROMPTS GOT ANNO TYPE:" + annotationTypeValue);
-    console.log("IN PROMPTS also GOT USER ID: " + userIdValue);
 
     if (!annotationTypeValue || !userIdValue) {
       console.error("Annotation type or user ID is missing.");
+      return;
+    }
+
+    if (!adminData || adminData.length === 0) {
+      console.error("No admin data available for annotation.");
+      return;
+    }
+    const { trainingSet, validationSet, testSet } = splitData(adminData);
+    // generateFineTuneData(trainingSet, validationSet);
+
+    try {
+      waitingForAnnotation = true;
+      // Trigger fine-tuning on the server
+      const response = await fetch("/api/toOpenAI", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          // trainingFile: "training_data.jsonl",
+          // validationFile: "validation_data.jsonl",
+          trainingSet,
+          validationSet,
+          testSet,
+          question,
+          system_prompt,
+          prompt_type: annotationTypeValue,
+          writer_id: userIdValue,
+        }),
+      });
+
+      if (response.ok) {
+        const responseData = await response.json();
+        const newPromptId = responseData.prompt_id;
+        console.log(
+          "Data sent to OpenAI successfully, new prompt ID:",
+          newPromptId
+        );
+
+        // Refresh past prompts after a successful request
+        fetchPastPrompts();
+      } else {
+        console.error("Failed to send data to OpenAI");
+      }
+    } catch (error) {
+      console.error("Error sending data to OpenAI:", error);
+    } finally {
+      waitingForAnnotation = false; // Stop the timer
+    }
+  }
+
+  async function sendPromptRedacted(question) {
+    showPopup = false;
+
+    // Retrieve the latest values from Svelte stores
+    const annotationTypeValue = get(selectedAnnotationType);
+    const userIdValue = get(userId);
+
+    if (!annotationTypeValue || !userIdValue) {
+      console.error("Annotation type or user ID is missing.");
+      return;
+    }
+
+    if (!adminData || adminData.length === 0) {
+      console.error("No admin data available for annotation.");
       return;
     }
 
@@ -164,6 +250,8 @@
     }
   }
 
+  //UI Related functions
+
   function addPromptWindow() {
     const newPrompt = {
       text: ``,
@@ -186,8 +274,6 @@
   function toggleInstructions() {
     expInstruction = !expInstruction;
   }
-
-  let responseText = "";
 
   function manageTimer() {
     if (waitingForAnnotation) {
@@ -331,7 +417,6 @@
 </section>
 
 <section>
-  <!-- <p style="margin-left:5%; margin-right:5%">The response:{responseText}</p> -->
   {#each $prompts as prompt, index}
     {#if prompt.adding}
       <div class="prompt">
@@ -351,11 +436,27 @@
               class="prompt-text"
               style="width:100%; height: 17em;"
             />
-            <button on:click={sendPrompt(prompt.text)} style="float: right;"
+            <!-- <button on:click={sendPrompt(prompt.text)} style="float: right;"
               >Submit and Test</button
-            >
+            > -->
+            <button on:click={() => (showPopup = true)}>Submit and Test</button>
           </div>
         {/if}
+      </div>
+    {/if}
+
+    {#if showPopup}
+      <div class="popup-overlay">
+        <div class="popup-content">
+          <h3>Annotation Process</h3>
+          <p>
+            The annotation process takes approximately 10 minutes to complete.
+            Please do not refresh page while annotation is in progress. Click
+            "Proceed" to start.
+          </p>
+          <button on:click={sendPrompt(prompt.text)}>Proceed</button>
+          <button on:click={() => (showPopup = false)}>Cancel</button>
+        </div>
       </div>
     {/if}
 
@@ -478,5 +579,48 @@
   a:active {
     text-decoration: none;
     color: #5facf2;
+  }
+
+  .popup-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.1);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+  }
+
+  .popup-content {
+    background: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    text-align: center;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+
+  .popup-content h3 {
+    margin-bottom: 15px;
+  }
+
+  .popup-content button {
+    margin: 5px;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+
+  .popup-content button:first-child {
+    background: #5facf2;
+    color: #fff;
+  }
+
+  .popup-content button:last-child {
+    background: #ccc;
+    color: #000;
   }
 </style>

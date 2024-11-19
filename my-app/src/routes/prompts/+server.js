@@ -34,7 +34,7 @@ export async function GET({ url }) {
           [prompt.prompt_id]
         );
 
-        console.log("Fetched annotations:", annotations);
+        // console.log("Fetched annotations:", annotations);
 
         // @ts-ignore
         if (annotations.length > 0) {

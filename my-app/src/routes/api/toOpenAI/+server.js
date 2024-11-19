@@ -1,9 +1,21 @@
-import openai from "openai";
 import { db } from "$lib/database.js"; // Ensure this file provides a MySQL connection with transaction support
+import { exec } from "child_process"; // To run CLI commands
+import path from "path";
+
+import fs from "fs";
+import fetch from "node-fetch";
+import OpenAI, { toFile } from "openai";
 
 // Set the OpenAI API key
 const apiKey = "";
 
+const openai = new OpenAI({
+  apiKey,
+});
+
+/**
+ * @param {string} responseText
+ */
 /**
  * @param {string} responseText
  */
@@ -18,16 +30,127 @@ function parseResponse(responseText) {
   } else if (["no", "false", "0", "vague"].includes(lowerResponse)) {
     return "false";
   } else {
-    throw new Error(
-      `Unexpected response format: ${responseText}. Expected 'Yes' or 'No'.`
+    // Log a warning about the unexpected response
+    console.warn(
+      `Warning: Unexpected response format: '${responseText}'. Expected 'Yes' or 'No'. Defaulting to 'false'.`
     );
+    // Return the default value 'false'
+    return "false";
   }
 }
 
+/**
+ * @param {any[]} dataset
+ * @param {fs.PathOrFileDescriptor} outputPath
+ */
+async function saveToJSONL(dataset, outputPath) {
+  const formattedData = dataset.map((item, index) => {
+    // Ensure all fields are strings
+    const description = item.description ? String(item.description) : "";
+    const transcript = item.transcript ? String(item.transcript) : "";
+    const comment = item.comment ? String(item.comment) : "";
+    const true_value = item.true_value ? String(item.true_value) : "";
+    console.log("LOGGINGGGG" + true_value);
+
+    // Debugging: Log if true_value is not a string
+    if (typeof true_value !== "string") {
+      console.error(
+        `Item at index ${index} has non-string true_value:`,
+        true_value
+      );
+    }
+
+    return {
+      messages: [
+        {
+          role: "user",
+          content: `Video description: ${description}\nTranscript: ${transcript}\nComment: ${comment}`,
+        },
+        { role: "assistant", content: true_value },
+      ],
+    };
+  });
+
+  // Write to a JSONL file
+  const jsonlData = formattedData
+    .map((entry) => JSON.stringify(entry))
+    .join("\n");
+
+  try {
+    fs.writeFileSync(outputPath, jsonlData, "utf-8");
+    console.log(`File saved successfully at ${outputPath}`);
+  } catch (error) {
+    console.error(`Error saving JSONL file at ${outputPath}:`, error);
+  }
+}
+
+/**
+ * @param {string} fineTuneJobId
+ */
+async function pollFineTuningJobStatus(fineTuneJobId) {
+  const pollInterval = 60000; // 60 seconds
+  const maxRetries = 60; // Maximum number of retries (1 hour)
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const jobStatusResponse = await openai.fineTuning.jobs.retrieve(
+        fineTuneJobId
+      );
+      const jobStatus = jobStatusResponse.status;
+
+      console.log(
+        `Polling attempt ${attempt + 1}: Job status is '${jobStatus}'`
+      );
+
+      if (jobStatus === "succeeded") {
+        console.log("Fine-tuning completed successfully.");
+        const fineTunedModel = jobStatusResponse.fine_tuned_model; // The name of the fine-tuned model
+        return fineTunedModel;
+      } else if (jobStatus === "failed") {
+        console.error("Fine-tuning failed:", jobStatusResponse);
+
+        // Retrieve and log the events
+        const eventsResponse = await openai.fineTuning.jobs.listEvents(
+          fineTuneJobId
+        );
+        const events = eventsResponse.data;
+        console.error("Fine-tuning job events:");
+        events.forEach((event) => {
+          console.error(
+            `[${event.created_at}] ${event.level}: ${event.message}`
+          );
+        });
+
+        return null;
+      } else {
+        // You might also want to log partial progress or any warnings
+        const events = await openai.fineTuning.jobs.listEvents(fineTuneJobId);
+        console.log("Fine-tuning job events:", events);
+      }
+    } catch (error) {
+      console.error("Error retrieving fine-tuning job status:", error);
+    }
+
+    // Wait before retrying
+    await new Promise((resolve) => setTimeout(resolve, pollInterval));
+  }
+
+  console.error("Fine-tuning polling timed out.");
+  return null;
+}
+
+// Main function
 // @ts-ignore
 export async function POST({ request }) {
-  const { data, question, system_prompt, prompt_type, writer_id } =
-    await request.json();
+  const {
+    trainingSet,
+    validationSet,
+    testSet,
+    question,
+    system_prompt,
+    prompt_type,
+    writer_id,
+  } = await request.json();
   let connection;
   console.log("IN SERVER RECEIVED:" + prompt_type + writer_id);
 
@@ -36,6 +159,49 @@ export async function POST({ request }) {
     connection = await db.getConnection();
 
     await connection.beginTransaction();
+
+    await saveToJSONL(trainingSet, "training_data.jsonl");
+    await saveToJSONL(validationSet, "validation_data.jsonl");
+
+    // Upload the training file
+    const trainingUploadResponse = await openai.files.create({
+      file: fs.createReadStream("training_data.jsonl"),
+      purpose: "fine-tune",
+    });
+
+    console.log("Training file uploaded:", trainingUploadResponse);
+
+    // Upload the validation file
+    const validationUploadResponse = await openai.files.create({
+      file: fs.createReadStream("validation_data.jsonl"),
+      purpose: "fine-tune",
+    });
+
+    console.log("Validation file uploaded:", validationUploadResponse);
+
+    // Create the fine-tuning job
+    const fineTuneResponse = await openai.fineTuning.jobs.create({
+      training_file: trainingUploadResponse.id,
+      validation_file: validationUploadResponse.id,
+      model: "gpt-4o-mini-2024-07-18",
+      hyperparameters: {
+        n_epochs: 3, // Reduce the number of epochs to 1
+        batch_size: 128, // Optional: adjust the batch size
+      },
+    });
+
+    console.log("Fine-tuning job created:", fineTuneResponse);
+
+    const fineTuneJobId = fineTuneResponse.id;
+
+    // Poll for job status
+    const fineTunedModelName = await pollFineTuningJobStatus(fineTuneJobId);
+
+    if (!fineTunedModelName) {
+      throw new Error("Fine-tuning failed or timed out");
+    }
+
+    console.log("Fine-tuned model name:", fineTunedModelName);
 
     // 1. Insert into Prompt (only once for the entire batch)
     const [promptResult] = await connection.query(
@@ -48,10 +214,7 @@ export async function POST({ request }) {
 
     const videoMap = new Map();
 
-    // console.log("WE LOG DATA" + data);
-
-    // Loop through each item in data, each representing a set of related prompt, video, comment, and annotation data
-    for (const item of data) {
+    for (const item of testSet) {
       const {
         prompt_type,
         video_url,
@@ -77,27 +240,16 @@ export async function POST({ request }) {
       let retries = 3;
       while (retries > 0) {
         try {
-          const response = await fetch(
-            "https://api.openai.com/v1/chat/completions",
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${apiKey}`,
-              },
-              body: JSON.stringify({
-                model: "gpt-4o-mini",
-                messages: messages,
-                temperature: 0,
-              }),
-            }
-          );
+          const gptResponse = await openai.chat.completions.create({
+            model: fineTunedModelName,
+            // @ts-ignore
+            messages: messages,
+            temperature: 0,
+          });
 
-          const gptResponse = await response.json();
-          // console.log(gptResponse);
+          // @ts-ignore
           responseContent = gptResponse.choices[0].message.content.trim();
           predicted_value = parseResponse(responseContent);
-          // console.log(predicted_value);
           retries = 0;
 
           // Check if choices array is present
