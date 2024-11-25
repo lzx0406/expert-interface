@@ -102,7 +102,7 @@
         if (predValue === "Yes") {
           include = include && prediction;
         } else if (predValue === "No") {
-          include = include && prediction;
+          include = include && !prediction;
         }
       }
 
@@ -110,7 +110,7 @@
         if (trueValue === "Yes") {
           include = include && truth;
         } else if (trueValue === "No") {
-          include = include && truth;
+          include = include && !truth;
         }
       }
 
@@ -153,7 +153,7 @@
         </div> -->
 
         <div style="margin-bottom: 1.5%">
-          <label>Predicted value according to AI</label>
+          <label>Predicted value according to your prompt and the AI</label>
           <select bind:value={predValue}>
             <option value="">All</option>
             <option value="Yes">Yes</option>
@@ -228,8 +228,8 @@
                 </a>
               </td>
               <td>{row.comment}</td>
-              <td>{row.true_value ? "Yes" : "No"}</td>
               <td>{row.predicted_value ? "Yes" : "No"}</td>
+              <td>{row.true_value ? "Yes" : "No"}</td>
             </tr>
           {/each}
         </tbody>

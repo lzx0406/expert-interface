@@ -22,6 +22,7 @@ export async function GET({ url }) {
     const [rows] = await db.query(
       `SELECT 
         Prompt.prompt_type,
+        Prompt.text,
         Video.url AS video_url, 
         Video.description AS description, 
         Video.transcript AS transcript, 

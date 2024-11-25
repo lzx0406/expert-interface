@@ -60,7 +60,8 @@ export async function GET({ url }) {
           prompt.metrics = JSON.parse(prompt.metrics);
           console.log("Parsed existing metrics:", prompt.metrics);
         } catch (error) {
-          console.error("Error parsing metrics JSON:", error);
+          // console.error("Error parsing metrics JSON:", error);
+          console.error("Error parsing metrics JSON:");
         }
       }
     }

@@ -33,6 +33,7 @@
   let interval;
 
   let showPopup = false;
+  let newAddingPrompt;
 
   // Fetch past prompts for the logged-in user on component mount
   onMount(() => {
@@ -117,28 +118,40 @@
     Do not add any explanations, comments, or additional information.
   `;
 
+  // function splitData(data) {
+  //   const total = data.length;
+
+  //   // Calculate split sizes
+  //   const trainSize = Math.floor(total * 0.8);
+  //   const validationSize = Math.floor(total * 0.1);
+
+  //   // Shuffle data
+  //   const shuffledData = [...data].sort(() => Math.random() - 0.5);
+
+  //   // Split data
+  //   const trainingSet = shuffledData.slice(0, trainSize);
+  //   const validationSet = shuffledData.slice(
+  //     trainSize,
+  //     trainSize + validationSize
+  //   );
+  //   const testSet = shuffledData.slice(trainSize + validationSize);
+
+  //   return { trainingSet, validationSet, testSet };
+  // }
   function splitData(data) {
     const total = data.length;
-
-    // Calculate split sizes
     const trainSize = Math.floor(total * 0.8);
     const validationSize = Math.floor(total * 0.1);
 
-    // Shuffle data
-    const shuffledData = [...data].sort(() => Math.random() - 0.5);
-
-    // Split data
-    const trainingSet = shuffledData.slice(0, trainSize);
-    const validationSet = shuffledData.slice(
-      trainSize,
-      trainSize + validationSize
-    );
-    const testSet = shuffledData.slice(trainSize + validationSize);
+    const trainingSet = data.slice(0, trainSize);
+    const validationSet = data.slice(trainSize, trainSize + validationSize);
+    const testSet = data.slice(trainSize + validationSize);
 
     return { trainingSet, validationSet, testSet };
   }
 
   async function sendPrompt(question) {
+    console.log("Got the question" + question);
     showPopup = false;
 
     // Retrieve the latest values from Svelte stores
@@ -171,6 +184,7 @@
           testSet,
           question,
           system_prompt,
+          $prompts,
           prompt_type: annotationTypeValue,
           writer_id: userIdValue,
         }),
@@ -196,59 +210,59 @@
     }
   }
 
-  async function sendPromptRedacted(question) {
-    showPopup = false;
+  // async function sendPromptRedacted(question) {
+  //   showPopup = false;
 
-    // Retrieve the latest values from Svelte stores
-    const annotationTypeValue = get(selectedAnnotationType);
-    const userIdValue = get(userId);
+  //   // Retrieve the latest values from Svelte stores
+  //   const annotationTypeValue = get(selectedAnnotationType);
+  //   const userIdValue = get(userId);
 
-    if (!annotationTypeValue || !userIdValue) {
-      console.error("Annotation type or user ID is missing.");
-      return;
-    }
+  //   if (!annotationTypeValue || !userIdValue) {
+  //     console.error("Annotation type or user ID is missing.");
+  //     return;
+  //   }
 
-    if (!adminData || adminData.length === 0) {
-      console.error("No admin data available for annotation.");
-      return;
-    }
+  //   if (!adminData || adminData.length === 0) {
+  //     console.error("No admin data available for annotation.");
+  //     return;
+  //   }
 
-    try {
-      // Set waitingForAnnotation to true to start the timer
-      waitingForAnnotation = true;
+  //   try {
+  //     // Set waitingForAnnotation to true to start the timer
+  //     waitingForAnnotation = true;
 
-      // Send request to the server
-      const response = await fetch("/api/toOpenAI", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          data: adminData,
-          question,
-          system_prompt,
-          prompt_type: annotationTypeValue,
-          writer_id: userIdValue,
-        }),
-      });
+  //     // Send request to the server
+  //     const response = await fetch("/api/toOpenAI", {
+  //       method: "POST",
+  //       headers: { "Content-Type": "application/json" },
+  //       body: JSON.stringify({
+  //         data: adminData,
+  //         question,
+  //         system_prompt,
+  //         prompt_type: annotationTypeValue,
+  //         writer_id: userIdValue,
+  //       }),
+  //     });
 
-      if (response.ok) {
-        const responseData = await response.json();
-        const newPromptId = responseData.prompt_id;
-        console.log(
-          "Data sent to OpenAI successfully, new prompt ID:",
-          newPromptId
-        );
+  //     if (response.ok) {
+  //       const responseData = await response.json();
+  //       const newPromptId = responseData.prompt_id;
+  //       console.log(
+  //         "Data sent to OpenAI successfully, new prompt ID:",
+  //         newPromptId
+  //       );
 
-        // Refresh past prompts after a successful request
-        fetchPastPrompts();
-      } else {
-        console.error("Failed to send data to OpenAI");
-      }
-    } catch (error) {
-      console.error("Error sending data to OpenAI:", error);
-    } finally {
-      waitingForAnnotation = false; // Stop the timer
-    }
-  }
+  //       // Refresh past prompts after a successful request
+  //       fetchPastPrompts();
+  //     } else {
+  //       console.error("Failed to send data to OpenAI");
+  //     }
+  //   } catch (error) {
+  //     console.error("Error sending data to OpenAI:", error);
+  //   } finally {
+  //     waitingForAnnotation = false; // Stop the timer
+  //   }
+  // }
 
   //UI Related functions
 
@@ -268,6 +282,11 @@
    */
   function toggleDetails(index) {
     $prompts[index].showDetails = !$prompts[index].showDetails;
+  }
+
+  let expPageInstruction = false;
+  function togglePageInstructions() {
+    expPageInstruction = !expPageInstruction;
   }
 
   let expInstruction = false;
@@ -335,17 +354,40 @@
       feedback to improve accuracy. Click on View Instructions below for more
       details on how to construct your prompt.
     </p>
+    <p>
+      To get started click the + New Prompt button above. After you have entered
+      a prompt you will see how well this prompt was able to instruct the AI to
+      label your data. You will also be able to explore examples that the AI
+      predicted correctly and incorrectly. Please use this feedback to improve
+      your prompt. Click the “+ New Prompt” button above again to enter a new
+      prompt. In total we would like you to enter 10 prompts.
+    </p>
+
+    <!-- svelte-ignore a11y-click-events-have-key-events -->
+    <!-- svelte-ignore a11y-no-static-element-interactions -->
+    <div class="prompt-header" on:click={() => togglePageInstructions()}>
+      {#if expPageInstruction}
+        <h3 style="margin-top:0; margin-bottom:1%; color: #5facf2">
+          <Fa icon={faChevronDown} /> &nbsp; Instructions on How to Use this Page
+        </h3>
+      {:else}
+        <h3 style="margin-top:0; margin-bottom:1%; color: #5facf2">
+          <Fa icon={faChevronRight} /> &nbsp; View Instructions on How to Use this
+          Page
+        </h3>
+      {/if}
+    </div>
 
     <!-- svelte-ignore a11y-click-events-have-key-events -->
     <!-- svelte-ignore a11y-no-static-element-interactions -->
     <div class="prompt-header" on:click={() => toggleInstructions()}>
       {#if expInstruction}
         <h3 style="margin-top:0; margin-bottom:1%; color: #5facf2">
-          <Fa icon={faChevronDown} /> &nbsp; Instructions
+          <Fa icon={faChevronDown} /> &nbsp; Instructions on How to Write Prompts
         </h3>
       {:else}
         <h3 style="margin-top:0; margin-bottom:1%; color: #5facf2">
-          <Fa icon={faChevronRight} /> &nbsp; View Instructions
+          <Fa icon={faChevronRight} /> &nbsp; View Instructions on How to Write Prompts
         </h3>
       {/if}
     </div>
@@ -356,58 +398,56 @@
         prompt this AI with a set of instructions. You can also refine your
         prompts based on the AIs performance.
       </p>
-      <p>Let's get started!</p>
+      <!-- <p>Let's get started!</p> -->
       <p>
         For example, let's say you are asking the AI to identify whether a
         social media comment is about summer vacations or not. You may write
         something like the prompt below:
       </p>
-      <p>
-        Please determine whether the following post is about a summer vacation.
-        To be about a summer vacation it must both be about a vacation and must
-        take place in the summertime. Please first justify your decision and
-        then conclude with either: <span style="font-style:italic"
-          >“True: This is a post about summer vacation”</span
-        >
-        or
-        <span style="font-style:italic"
-          >“False: This is not a post about summer vacation”</span
-        >
+      <p
+        style="margin-left:30px; margin-right:30px; background-color:#ece2f0; border-radius:5px"
+      >
+        <tt style="font-size:large">
+          Please determine whether the following post is about a summer
+          vacation. To be about a summer vacation it must both be about a
+          vacation and must take place in the summertime. Please first justify
+          your decision and then conclude with either: <span
+            style="font-style:italic"
+            >“True: This is a post about summer vacation”</span
+          >
+          or
+          <span style="font-style:italic"
+            >“False: This is not a post about summer vacation”</span
+          >
+        </tt>
       </p>
       <p>
         These instructions should be direct and simple. AI models are designed
         to respond in specific ways (e.g., polite and informative), but you can
         tailor their responses by providing clear instructions in your prompts.
         For example, you can ask them to focus on specific aspects of a topic or
-        provide evidence for their claims.
-      </p>
-      <p>
-        Here is an extended guide for writing effective prompts:
+        provide evidence for their claims. Here is an extended guide for writing
+        effective prompts:
         <a href="https://midas.umich.edu/a-quick-guide-for-effective-prompting/"
           >https://midas.umich.edu/a-quick-guide-for-effective-prompting/</a
         >.
       </p>
-      <p>
-        We strongly suggest your prompt includes this instruction somewhere
-        within the prompt:
+      <p style="font-weight:bold">
+        [IMPORTANT] The prompt the AI sees is the following, your prompt would
+        be appended to the prompt: <br />
       </p>
-      <p style="margin-right: 30%; font-style:italic">
-        Please first justify your decision and then conclude with either “True:
-        This is X.” or “False: This is not X”.
-      </p>
-      <p>
-        Research has shown that asking the AI to justify its answer improves
-        performance. Additionally, the answer will be coded based on whether the
-        response includes “True: This is X.” or “False: This is not X”.
-      </p>
-      <p>
-        To get started click the + New Prompt button above. After you have
-        entered a prompt you will see how well this prompt was able to instruct
-        the AI to label your data. You will also be able to explore examples
-        that the AI predicted correctly and incorrectly. Please use this
-        feedback to improve your prompt. Click the “+ New Prompt” button above
-        again to enter a new prompt. In total we would like you to enter 10
-        prompts.
+      <p
+        style="margin-left:30px; margin-right:30px; background-color:#ece2f0; border-radius:5px"
+      >
+        <tt style="font-size:large">
+          You are an assistant specializing in video content analysis and
+          annotation. You will be given descriptions, transcriptions, and
+          comments on YouTube videos. <span style="font-weight:bold"
+            >&lt;YOUR PROMPT WILL BE INSERTED HERE&gt;</span
+          > Respond with a single word: either "Yes" or "No" only. Format your response
+          EXACTLY as follows: [Yes / No] Do not add any explanations, comments, or
+          additional information.</tt
+        >
       </p>
     {/if}
     <button on:click={addPromptWindow} style="margin-top: 2%"
@@ -439,7 +479,10 @@
             <!-- <button on:click={sendPrompt(prompt.text)} style="float: right;"
               >Submit and Test</button
             > -->
-            <button on:click={() => (showPopup = true)}>Submit and Test</button>
+            <button
+              on:click={() => ((newAddingPrompt = prompt), (showPopup = true))}
+              >Submit and Test</button
+            >
           </div>
         {/if}
       </div>
@@ -454,7 +497,7 @@
             Please do not refresh page while annotation is in progress. Click
             "Proceed" to start.
           </p>
-          <button on:click={sendPrompt(prompt.text)}>Proceed</button>
+          <button on:click={sendPrompt(newAddingPrompt.text)}>Proceed</button>
           <button on:click={() => (showPopup = false)}>Cancel</button>
         </div>
       </div>
