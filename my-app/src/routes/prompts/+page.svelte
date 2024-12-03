@@ -334,6 +334,46 @@
     });
     return formattedTime;
   }
+
+  // Instruction part
+  let currentStep = 0;
+
+  const steps = [
+    {
+      text: `First, hit the <span style="font-weight:bold;">View Instructions on How to Write Prompts</span> 
+        to learn a bit about developing a prompt and how you prompt will be passed to the AI.`,
+      img: "/videos/rec1.gif",
+    },
+    {
+      text: `Hit the <span style="font-weight:bold;">+ New Prompt</span> button to start a new prompt 
+        that will annotate your data. Fill in a text prompt and hit <span style="font-weight:bold;">Submit and Test</span>. 
+        This sends the prompt to the AI, and annotates the statements (e.g., wildlife comment on youtube), and may take longer 
+        than 10 minutes. Feel free to grab a coffee :)`,
+      img: "/videos/rec2.gif",
+    },
+    {
+      text: `Please allow the process to complete before navigating through the website as this is a computationally expensive 
+      process, and may result in unexpected results. You are free to navigate away from the site and carry on with other work on your computer ().`,
+    },
+    {
+      text: `Once the process is complete, you can click on the prompt to view the results of your prompt's ability to annotate the statements. 
+      We have included recall, and accuracy. This compares the performance of your prompt with the manually (crowdsourced) annotated/classified statements.`,
+      img: "/videos/rec3.gif",
+    },
+    {
+      text: `It is possible to learn about the speicific examples that you got right and wrong by pressing the error examples. 
+      This brings up a spread sheet of the videos url and whehter or not you got them.`,
+      img: "/videos/rec4.gif",
+    },
+  ];
+
+  function nextStep() {
+    if (currentStep < steps.length - 1) currentStep++;
+  }
+
+  function previousStep() {
+    if (currentStep > 0) currentStep--;
+  }
 </script>
 
 <section>
@@ -365,18 +405,49 @@
 
     <!-- svelte-ignore a11y-click-events-have-key-events -->
     <!-- svelte-ignore a11y-no-static-element-interactions -->
-    <div class="prompt-header" on:click={() => togglePageInstructions()}>
+    <div class="prompt-header" on:click={togglePageInstructions}>
       {#if expPageInstruction}
-        <h3 style="margin-top:0; margin-bottom:1%; color: #5facf2">
+        <h3 style="color: #5facf2">
           <Fa icon={faChevronDown} /> &nbsp; Instructions on How to Use this Page
         </h3>
       {:else}
-        <h3 style="margin-top:0; margin-bottom:1%; color: #5facf2">
+        <h3 style="color: #5facf2">
           <Fa icon={faChevronRight} /> &nbsp; View Instructions on How to Use this
           Page
         </h3>
       {/if}
     </div>
+
+    {#if expPageInstruction}
+      <div class="instructions">
+        <p
+          style="background-color: rgba(255, 165, 0, 0.3); padding:0.5em; border-radius:5px; font-size:large"
+        >
+          {@html steps[currentStep].text}
+        </p>
+        {#if steps[currentStep].img}
+          <img
+            src={steps[currentStep].img}
+            style="width:60%;"
+            alt={`Step ${currentStep + 1}`}
+          />
+        {/if}
+
+        <div class="navigation-buttons">
+          <button on:click={previousStep} disabled={currentStep === 0}
+            ><Fa icon={faChevronLeft} /> Previous</button
+          >
+          <div style="font-weight: bold; margin: 0em 1em 0em 1em">
+            Step {currentStep + 1} / 5
+          </div>
+          <button
+            on:click={nextStep}
+            disabled={currentStep === steps.length - 1}
+            >Next <Fa icon={faChevronRight} /></button
+          >
+        </div>
+      </div>
+    {/if}
 
     <!-- svelte-ignore a11y-click-events-have-key-events -->
     <!-- svelte-ignore a11y-no-static-element-interactions -->
@@ -410,15 +481,7 @@
         <tt style="font-size:large">
           Please determine whether the following post is about a summer
           vacation. To be about a summer vacation it must both be about a
-          vacation and must take place in the summertime. Please first justify
-          your decision and then conclude with either: <span
-            style="font-style:italic"
-            >“True: This is a post about summer vacation”</span
-          >
-          or
-          <span style="font-style:italic"
-            >“False: This is not a post about summer vacation”</span
-          >
+          vacation and must take place in the summertime.
         </tt>
       </p>
       <p>
@@ -510,11 +573,12 @@
         <div class="prompt-header" on:click={() => toggleDetails(index)}>
           {#if prompt.showDetails}
             <h3>
-              <Fa icon={faChevronDown} /> &nbsp; Prompt {prompt.prompt_id}
+              <!-- <Fa icon={faChevronDown} /> &nbsp; Prompt {prompt.prompt_id} -->
+              <Fa icon={faChevronDown} /> &nbsp; Prompt {index + 1}
             </h3>
           {:else}
             <h3>
-              <Fa icon={faChevronRight} /> &nbsp; Prompt {prompt.prompt_id}
+              <Fa icon={faChevronRight} /> &nbsp; Prompt {index + 1}
             </h3>
           {/if}
           <p>{formatTimeSubmitted(prompt.time_submitted)}</p>
@@ -665,5 +729,34 @@
   .popup-content button:last-child {
     background: #ccc;
     color: #000;
+  }
+
+  video {
+    border: 2px solid #ccc;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+
+  .instructions {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1em;
+  }
+  .navigation-buttons {
+    margin-top: 1em;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+  }
+  button {
+    margin-right: 0.5em;
+    padding: 0.5em 1em;
+    font-size: 1em;
+  }
+  button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 </style>

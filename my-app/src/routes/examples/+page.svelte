@@ -214,10 +214,33 @@
             <th>True Value</th>
           </tr>
         </thead>
-        <tbody>
+        <!-- <tbody>
           {#each filteredData as row}
             <tr>
               <td>{row.annotation_id}</td>
+              <td>
+                <a
+                  href="https://www.youtube.com/watch?v={row.video_url}"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {row.video_url}
+                </a>
+              </td>
+              <td>{row.comment}</td>
+              <td>{row.predicted_value ? "Yes" : "No"}</td>
+              <td>{row.true_value ? "Yes" : "No"}</td>
+            </tr>
+          {/each}
+        </tbody> -->
+        <tbody>
+          {#each filteredData as row}
+            <tr>
+              <td
+                >{exampleData.findIndex((originalRow) => originalRow === row) +
+                  1}</td
+              >
+              <!-- Dynamically calculate the original index -->
               <td>
                 <a
                   href="https://www.youtube.com/watch?v={row.video_url}"
