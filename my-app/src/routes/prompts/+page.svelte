@@ -33,6 +33,7 @@
   let timeElapsed = 0;
   let minutes, seconds, formattedTime;
   let interval;
+  console.log("GETTT waiting for annotation:" + $waitingForAnnotation);
 
   let showPopup = false;
   let newAddingPrompt;
@@ -219,7 +220,6 @@
   }
 
   //UI Related functions
-
   function addPromptWindow() {
     const newPrompt = {
       text: ``,
@@ -298,19 +298,19 @@
   const steps = [
     {
       text: `First, hit the <span style="font-weight:bold;">View Instructions on How to Write Prompts</span> 
-        to learn a bit about developing a prompt and how you prompt will be passed to the AI.`,
+        to learn a bit about developing a prompt and how your prompt will be passed to the AI.`,
       img: "/videos/rec1.gif",
     },
     {
       text: `Hit the <span style="font-weight:bold;">+ New Prompt</span> button to start a new prompt 
         that will annotate your data. Fill in a text prompt and hit <span style="font-weight:bold;">Submit and Test</span>. 
-        This sends the prompt to the AI, and annotates the statements (e.g., wildlife comment on youtube), and may take longer 
+        This sends the prompt to the AI, and annotates the statements (e.g., wildlife comment on YouTube), and may take longer 
         than 10 minutes. Feel free to grab a coffee :)`,
       img: "/videos/rec2.gif",
     },
     {
       text: `Please allow the process to complete before navigating through the website as this is a computationally expensive 
-      process, and may result in unexpected results. You are free to navigate away from the site and carry on with other work on your computer.`,
+      process, and may result in unexpected results. Please don't close the window, but you are free to navigate away from the site and carry on with other work on your computer.`,
     },
     {
       text: `Once the process is complete, you can click on the prompt to view the results of your prompt's ability to annotate the statements. 
@@ -318,8 +318,13 @@
       img: "/videos/rec3.gif",
     },
     {
-      text: `It is possible to learn about the speicific examples that you got right and wrong by pressing the error examples. 
-      This brings up a spread sheet of the videos url and whehter or not you got them.`,
+      text: `It is possible to learn about the specific examples that the AI you trained got right and wrong by pressing the <span style="font-weight:bold;">"error examples"</span> link. 
+      This brings up a spreadsheet, which contains the following columns:</br>
+      <span style="font-weight:bold;">Video URL</span>: If you click it you will be taken to the YouTube video being annotated. </br>
+      <span style="font-weight:bold;">Comment</span>: The comment under the YouTube video to be annotated.</br>
+      <span style="font-weight:bold;">Predicted Value</span>: The value predicted by the AI.</br>
+      <span style="font-weight:bold;">True Value</span>: The value assigned by the human annotators.</br>
+      You can also use the filters under <span style="font-weight:bold;">"Filter Examples"</span> to view only "Yes" or "No" values by AI or humans, or view only incorrect predictions.`,
       img: "/videos/rec4.gif",
     },
   ];
@@ -352,8 +357,9 @@
       You are training an AI to annotate your dataset by creating prompts that
       instruct the AI on how to label your data. Write clear and specific
       prompts, asking the AI to justify its decisions, and refine them based on
-      feedback to improve accuracy. Click on View Instructions below for more
-      details on how to construct your prompt.
+      feedback to improve accuracy. Click on the <span style="font-weight:bold"
+        >View Instructions</span
+      > below for more details on how to use this page, or construct your prompt.
     </p>
     <p>
       To get started click the <span style="font-weight:bold">+ New Prompt</span
@@ -452,11 +458,12 @@
         to respond in specific ways (e.g., polite and informative), but you can
         tailor their responses by providing clear instructions in your prompts.
         For example, you can ask them to focus on specific aspects of a topic or
-        provide evidence for their claims. Here is an extended guide for writing
-        effective prompts:
-        <a href="https://midas.umich.edu/a-quick-guide-for-effective-prompting/"
-          >https://midas.umich.edu/a-quick-guide-for-effective-prompting/</a
-        >.
+        provide evidence for their claims. Here is a guide for writing effective
+        prompts:<br />
+        <a
+          href="https://midas.umich.edu/research/research-resources/generative-ai-hub/users-guide/effective-prompting/"
+          >https://midas.umich.edu/research/research-resources/generative-ai-hub/users-guide/effective-prompting/</a
+        ><br />
       </p>
       <p style="font-weight:bold">
         [IMPORTANT] The prompt the AI sees is the following, your prompt would
@@ -494,7 +501,13 @@
       >
         <h3>New Prompt</h3>
         {#if $waitingForAnnotation}
-          <p>AI is annotating data. Time elapsed: {formattedTime}</p>
+          <p style="text-align:right">
+            <span style="color:red; font-weight:bold"
+              >Please do not close the window or refresh while annotating.</span
+            ><br /> The results will automatically return when annotation is
+            finished.<br />
+            AI is annotating data... <span>Time elapsed: {formattedTime}</span>
+          </p>
         {/if}
       </div>
       {#if $pendingPrompt.showDetails}
@@ -521,8 +534,10 @@
               <button
                 on:click={() => (
                   (newAddingPrompt = $pendingPrompt), (showPopup = true)
-                )}>Submit and Test</button
+                )}
               >
+                Submit and Test
+              </button>
             {:else}
               <button
                 disabled
@@ -537,47 +552,22 @@
     </div>
   {/if}
 
+  {#if showPopup}
+    <div class="popup-overlay">
+      <div class="popup-content">
+        <h3>Annotation Process</h3>
+        <p>
+          The annotation process takes approximately more than 10 minutes to
+          complete. Please do not refresh page while annotation is in progress.
+          Click "Proceed" to start.
+        </p>
+        <button on:click={sendPrompt(newAddingPrompt.text)}>Proceed</button>
+        <button on:click={() => (showPopup = false)}>Cancel</button>
+      </div>
+    </div>
+  {/if}
+
   {#each $prompts as prompt, index}
-    <!-- {#if prompt.adding}
-      <div class="prompt">
-        <div class="prompt-header" on:click={() => toggleDetails(index)}>
-          <h3>New Prompt</h3>
-          {#if waitingForAnnotation}
-            <p>AI is annotating data. Time elapsed: {formattedTime}</p>
-          {/if}
-        </div>
-        {#if prompt.showDetails}
-          <div style="margin: 1% 0% 3% 0%; padding-bottom:2%">
-            <textarea
-              bind:value={prompt.text}
-              placeholder="Please enter your new prompt"
-              class="prompt-text"
-              style="width:100%; height: 17em;"
-            />
-            <button
-              on:click={() => ((newAddingPrompt = prompt), (showPopup = true))}
-              >Submit and Test</button
-            >
-          </div>
-        {/if}
-      </div>
-    {/if} -->
-
-    {#if showPopup}
-      <div class="popup-overlay">
-        <div class="popup-content">
-          <h3>Annotation Process</h3>
-          <p>
-            The annotation process takes approximately 10 minutes to complete.
-            Please do not refresh page while annotation is in progress. Click
-            "Proceed" to start.
-          </p>
-          <button on:click={sendPrompt(newAddingPrompt.text)}>Proceed</button>
-          <button on:click={() => (showPopup = false)}>Cancel</button>
-        </div>
-      </div>
-    {/if}
-
     <!-- svelte-ignore a11y-no-static-element-interactions -->
     {#if !prompt.adding}
       <div class="prompt">

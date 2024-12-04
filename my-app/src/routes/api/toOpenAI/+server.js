@@ -5,6 +5,14 @@ import path from "path";
 import fs from "fs";
 import fetch from "node-fetch";
 import OpenAI, { toFile } from "openai";
+import {
+  waitingForAnnotation,
+  pendingPrompt,
+  selectedAnnotationType,
+  userId,
+  userName,
+  prompts,
+} from "$lib/stores";
 
 // Set the OpenAI API key
 const apiKey = "";
@@ -316,7 +324,7 @@ export async function POST({ request }) {
         validation_file: validationUploadResponse.id,
         model: "gpt-4o-mini-2024-07-18",
         hyperparameters: {
-          n_epochs: 3, // Reduce the number of epochs to 1?
+          n_epochs: 1, // Reduce the number of epochs to 1?
           batch_size: 128,
         },
       });
@@ -459,6 +467,9 @@ export async function POST({ request }) {
 
     // Commit the transaction after successfully inserting all records
     await connection.commit();
+    // @ts-ignore
+    // waitingForAnnotation.set(false);
+    // pendingPrompt.set(null);
 
     return new Response(
       JSON.stringify({
