@@ -7,8 +7,7 @@ import fetch from "node-fetch";
 import OpenAI, { toFile } from "openai";
 
 // Set the OpenAI API key
-const apiKey =
-  "sk-adO_O3cXj4z6e7KY3ZBwJ63T93ZQSXDCap1Q5UyQDDT3BlbkFJDsUzmYFVzB561hkuGDOQfGPyJJmvhAX50hTHmvoUwA";
+const apiKey = "";
 
 const openai = new OpenAI({
   apiKey,
