@@ -35,6 +35,7 @@
   const query = $page.url.searchParams;
   const title = query.get("title");
   const id = query.get("id");
+  const idshow = query.get("idshow");
 
   let filteredData = [];
 
@@ -128,7 +129,7 @@
   <div class="top">
     <a href={`../prompts`}><Fa icon={faHouse} /> Back to My Prompts </a>
     <h1>Annotation Examples</h1>
-    <p>Prompt {id}</p>
+    <p>Prompt {idshow}</p>
     <p>{formatTimeSubmitted(timeP)}</p>
     <p>{textP}</p>
   </div>

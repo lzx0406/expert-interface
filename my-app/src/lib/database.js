@@ -22,7 +22,7 @@ console.log("DB_USER:", process.env.DB_USER);
 export const db = mysql.createPool({
   host: "aiexpertsdb.ch0mqku8apof.us-east-2.rds.amazonaws.com",
   user: "admin",
-  password: "",
+  password: "P_MQ3mb:ZweiOxS:%x0j#[joMAxT",
   // password: "GFFv.!*}7{nbdfgeipe:98Z1pT+1q", // Your RDS password
   database: "aiexpertsdb", // The database you created
   waitForConnections: true,

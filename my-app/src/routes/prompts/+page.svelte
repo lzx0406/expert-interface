@@ -18,6 +18,8 @@
   } from "@fortawesome/free-solid-svg-icons";
 
   import {
+    waitingForAnnotation,
+    pendingPrompt,
     selectedAnnotationType,
     userId,
     userName,
@@ -27,7 +29,7 @@
   let promptList = [];
   let prompt_id, text, prompt_type, time_submitted, metrics;
   let adminData, admin_p_id;
-  let waitingForAnnotation = false;
+  // let waitingForAnnotation = false;
   let timeElapsed = 0;
   let minutes, seconds, formattedTime;
   let interval;
@@ -171,8 +173,13 @@
     // generateFineTuneData(trainingSet, validationSet);
 
     try {
-      waitingForAnnotation = true;
-      // Trigger fine-tuning on the server
+      waitingForAnnotation.set(true);
+      pendingPrompt.set({
+        text: question,
+        showDetails: true,
+      });
+
+      // trigger fine-tuning
       const response = await fetch("/api/toOpenAI", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -206,75 +213,19 @@
     } catch (error) {
       console.error("Error sending data to OpenAI:", error);
     } finally {
-      waitingForAnnotation = false; // Stop the timer
+      waitingForAnnotation.set(false);
+      pendingPrompt.set(null);
     }
   }
-
-  // async function sendPromptRedacted(question) {
-  //   showPopup = false;
-
-  //   // Retrieve the latest values from Svelte stores
-  //   const annotationTypeValue = get(selectedAnnotationType);
-  //   const userIdValue = get(userId);
-
-  //   if (!annotationTypeValue || !userIdValue) {
-  //     console.error("Annotation type or user ID is missing.");
-  //     return;
-  //   }
-
-  //   if (!adminData || adminData.length === 0) {
-  //     console.error("No admin data available for annotation.");
-  //     return;
-  //   }
-
-  //   try {
-  //     // Set waitingForAnnotation to true to start the timer
-  //     waitingForAnnotation = true;
-
-  //     // Send request to the server
-  //     const response = await fetch("/api/toOpenAI", {
-  //       method: "POST",
-  //       headers: { "Content-Type": "application/json" },
-  //       body: JSON.stringify({
-  //         data: adminData,
-  //         question,
-  //         system_prompt,
-  //         prompt_type: annotationTypeValue,
-  //         writer_id: userIdValue,
-  //       }),
-  //     });
-
-  //     if (response.ok) {
-  //       const responseData = await response.json();
-  //       const newPromptId = responseData.prompt_id;
-  //       console.log(
-  //         "Data sent to OpenAI successfully, new prompt ID:",
-  //         newPromptId
-  //       );
-
-  //       // Refresh past prompts after a successful request
-  //       fetchPastPrompts();
-  //     } else {
-  //       console.error("Failed to send data to OpenAI");
-  //     }
-  //   } catch (error) {
-  //     console.error("Error sending data to OpenAI:", error);
-  //   } finally {
-  //     waitingForAnnotation = false; // Stop the timer
-  //   }
-  // }
 
   //UI Related functions
 
   function addPromptWindow() {
     const newPrompt = {
       text: ``,
-      metrics: {},
       showDetails: true,
-      showErrors: false,
-      adding: true,
     };
-    $prompts = [newPrompt, ...$prompts];
+    pendingPrompt.set(newPrompt);
   }
 
   /**
@@ -295,7 +246,7 @@
   }
 
   function manageTimer() {
-    if (waitingForAnnotation) {
+    if ($waitingForAnnotation) {
       timeElapsed = 0; // Reset timer at the start
       interval = setInterval(() => {
         timeElapsed += 1;
@@ -305,9 +256,15 @@
     }
   }
 
+  function cancelNewPrompt() {
+    pendingPrompt.set(null);
+  }
+
   // Watch waitingForAnnotation to start or stop the timer
-  $: if (waitingForAnnotation) {
+  $: if ($waitingForAnnotation) {
     manageTimer();
+  } else {
+    clearInterval(interval);
   }
 
   // Format time as MM:SS
@@ -353,7 +310,7 @@
     },
     {
       text: `Please allow the process to complete before navigating through the website as this is a computationally expensive 
-      process, and may result in unexpected results. You are free to navigate away from the site and carry on with other work on your computer ().`,
+      process, and may result in unexpected results. You are free to navigate away from the site and carry on with other work on your computer.`,
     },
     {
       text: `Once the process is complete, you can click on the prompt to view the results of your prompt's ability to annotate the statements. 
@@ -376,17 +333,21 @@
   }
 </script>
 
+<section class="head">
+  <h1>
+    <Fa icon={faHouse} /> <span style="color:#5facf2">{$userName}</span>'s
+    Prompts
+  </h1>
+  <p>
+    Selected Annotation Type: <span style="font-weight:bold"
+      >{$selectedAnnotationType}</span
+    >
+  </p>
+</section>
+
 <section>
   <div class="top">
-    <h1>
-      <Fa icon={faHouse} /> <span style="color:#5facf2">{$userName}</span>'s
-      Prompts
-    </h1>
-    <p>
-      Selected Annotation Type: <span style="font-weight:bold"
-        >{$selectedAnnotationType}</span
-      >
-    </p>
+    <h3>Instructions</h3>
     <p>
       You are training an AI to annotate your dataset by creating prompts that
       instruct the AI on how to label your data. Write clear and specific
@@ -395,12 +356,14 @@
       details on how to construct your prompt.
     </p>
     <p>
-      To get started click the + New Prompt button above. After you have entered
-      a prompt you will see how well this prompt was able to instruct the AI to
-      label your data. You will also be able to explore examples that the AI
-      predicted correctly and incorrectly. Please use this feedback to improve
-      your prompt. Click the “+ New Prompt” button above again to enter a new
-      prompt. In total we would like you to enter 10 prompts.
+      To get started click the <span style="font-weight:bold">+ New Prompt</span
+      >
+      button above. After you have entered a prompt you will see how well this prompt
+      was able to instruct the AI to label your data. You will also be able to explore
+      examples that the AI predicted correctly and incorrectly. Please use this feedback
+      to improve your prompt. Click the
+      <span style="font-weight:bold">+ New Prompt</span> button above again to enter
+      a new prompt. In total we would like you to enter 10 prompts.
     </p>
 
     <!-- svelte-ignore a11y-click-events-have-key-events -->
@@ -513,18 +476,70 @@
         >
       </p>
     {/if}
-    <button on:click={addPromptWindow} style="margin-top: 2%"
-      >+ New Prompt</button
-    >
   </div>
 </section>
 
 <section>
+  <button on:click={addPromptWindow} style="margin: 0% 0% 2% 5%"
+    >+ New Prompt</button
+  >
+  {#if $pendingPrompt}
+    <div class="prompt">
+      <!-- svelte-ignore a11y-click-events-have-key-events -->
+      <!-- svelte-ignore a11y-no-static-element-interactions -->
+      <div
+        class="prompt-header"
+        on:click={() =>
+          ($pendingPrompt.showDetails = !$pendingPrompt.showDetails)}
+      >
+        <h3>New Prompt</h3>
+        {#if $waitingForAnnotation}
+          <p>AI is annotating data. Time elapsed: {formattedTime}</p>
+        {/if}
+      </div>
+      {#if $pendingPrompt.showDetails}
+        <div style="margin: 1% 0% 3% 0%; padding-bottom:2%">
+          <textarea
+            bind:value={$pendingPrompt.text}
+            placeholder="Please enter your new prompt"
+            class="prompt-text"
+            style="width:100%; height: 17em;"
+          />
+          <!-- {#if !$waitingForAnnotation}
+            <button
+              on:click={() => (
+                (newAddingPrompt = $pendingPrompt), (showPopup = true)
+              )}>Submit and Test</button
+            >
+          {/if} -->
+          <div class="button-group">
+            {#if !$waitingForAnnotation}
+              <button
+                style="background-color:#ccc; color:#000"
+                on:click={cancelNewPrompt}>Cancel</button
+              >
+              <button
+                on:click={() => (
+                  (newAddingPrompt = $pendingPrompt), (showPopup = true)
+                )}>Submit and Test</button
+              >
+            {:else}
+              <button
+                disabled
+                style="opacity: 0.5; background-color:#ccc; color:#000"
+                >Cancel</button
+              >
+              <button disabled style="opacity: 0.5;">Submit and Test</button>
+            {/if}
+          </div>
+        </div>
+      {/if}
+    </div>
+  {/if}
+
   {#each $prompts as prompt, index}
-    {#if prompt.adding}
+    <!-- {#if prompt.adding}
       <div class="prompt">
-        <!-- svelte-ignore a11y-click-events-have-key-events -->
-        <!-- svelte-ignore a11y-no-static-element-interactions -->
         <div class="prompt-header" on:click={() => toggleDetails(index)}>
           <h3>New Prompt</h3>
           {#if waitingForAnnotation}
@@ -539,9 +554,6 @@
               class="prompt-text"
               style="width:100%; height: 17em;"
             />
-            <!-- <button on:click={sendPrompt(prompt.text)} style="float: right;"
-              >Submit and Test</button
-            > -->
             <button
               on:click={() => ((newAddingPrompt = prompt), (showPopup = true))}
               >Submit and Test</button
@@ -549,7 +561,7 @@
           </div>
         {/if}
       </div>
-    {/if}
+    {/if} -->
 
     {#if showPopup}
       <div class="popup-overlay">
@@ -601,7 +613,7 @@
                 {/if}
               </div>
               <a
-                href={`/examples?title=${encodeURIComponent(prompt.prompt_id)}&id=${prompt.prompt_id}`}
+                href={`/examples?title=${encodeURIComponent(prompt.prompt_id)}&id=${prompt.prompt_id}&idshow=${index + 1}`}
                 style="text-align:right;"
                 >Error Examples <Fa icon={faChevronRight} /></a
               >
@@ -614,9 +626,17 @@
 </section>
 
 <style>
+  .head {
+    margin: 0% 5% 0% 5%;
+    display: flex-start;
+  }
+
   .top {
     margin: 0% 5% 3% 5%;
     display: flex-start;
+    background-color: #f5f5f5;
+    padding: 1% 3% 1% 3%;
+    border-radius: 10px;
   }
 
   .prompt {
@@ -754,6 +774,10 @@
     margin-right: 0.5em;
     padding: 0.5em 1em;
     font-size: 1em;
+  }
+  .button-group {
+    display: flex;
+    justify-content: space-between;
   }
   button:disabled {
     opacity: 0.5;

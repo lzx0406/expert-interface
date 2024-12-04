@@ -34,3 +34,9 @@ export const selectedAnnotationType = persistentStore(
 export const userId = persistentStore("userId", null);
 export const userName = persistentStore("userName", null);
 export const prompts = persistentStore("prompts", []);
+export const waitingForAnnotation = persistentStore(
+  "waitingForAnnotation",
+  // @ts-ignore
+  false
+);
+export const pendingPrompt = persistentStore("pendingPrompt", null);
