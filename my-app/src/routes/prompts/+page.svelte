@@ -24,16 +24,18 @@
     userId,
     userName,
     prompts,
+    latestProgress,
   } from "$lib/stores";
 
   let promptList = [];
   let prompt_id, text, prompt_type, time_submitted, metrics;
   let adminData, admin_p_id;
-  // let waitingForAnnotation = false;
   let timeElapsed = 0;
   let minutes, seconds, formattedTime;
   let interval;
+  // latestProgress.set("pending");
   console.log("GETTT waiting for annotation:" + $waitingForAnnotation);
+  console.log("GETTT Latest:" + $latestProgress);
 
   let showPopup = false;
   let newAddingPrompt;
@@ -111,7 +113,7 @@
     You will be given descriptions, transcriptions, and comments on YouTube videos.
     Your task is to answer the following question based solely on the provided information:
 
-    Does this comment on the video contain ${selectedAnnotationType}?
+    Does this comment on the video contain ${$selectedAnnotationType}?
 
     Respond with a single word: either "Yes" or "No" only.
 
@@ -121,36 +123,16 @@
     Do not add any explanations, comments, or additional information.
   `;
 
-  // function splitData(data) {
-  //   const total = data.length;
-
-  //   // Calculate split sizes
-  //   const trainSize = Math.floor(total * 0.8);
-  //   const validationSize = Math.floor(total * 0.1);
-
-  //   // Shuffle data
-  //   const shuffledData = [...data].sort(() => Math.random() - 0.5);
-
-  //   // Split data
-  //   const trainingSet = shuffledData.slice(0, trainSize);
-  //   const validationSet = shuffledData.slice(
-  //     trainSize,
-  //     trainSize + validationSize
-  //   );
-  //   const testSet = shuffledData.slice(trainSize + validationSize);
-
-  //   return { trainingSet, validationSet, testSet };
-  // }
   function splitData(data) {
     const total = data.length;
-    const trainSize = Math.floor(total * 0.8);
-    const validationSize = Math.floor(total * 0.1);
+    const trainSize = Math.floor(total * 0.6);
+    const holdoutSize = Math.floor(total * 0.1);
 
     const trainingSet = data.slice(0, trainSize);
-    const validationSet = data.slice(trainSize, trainSize + validationSize);
-    const testSet = data.slice(trainSize + validationSize);
+    const holdoutSet = data.slice(trainSize, trainSize + holdoutSize);
+    const testSet = data.slice(trainSize + holdoutSize);
 
-    return { trainingSet, validationSet, testSet };
+    return { trainingSet, holdoutSet, testSet };
   }
 
   async function sendPrompt(question) {
@@ -170,8 +152,7 @@
       console.error("No admin data available for annotation.");
       return;
     }
-    const { trainingSet, validationSet, testSet } = splitData(adminData);
-    // generateFineTuneData(trainingSet, validationSet);
+    const { trainingSet, holdoutSet, testSet } = splitData(adminData);
 
     try {
       waitingForAnnotation.set(true);
@@ -185,10 +166,8 @@
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          // trainingFile: "training_data.jsonl",
-          // validationFile: "validation_data.jsonl",
           trainingSet,
-          validationSet,
+          // validationSet,
           testSet,
           question,
           system_prompt,
@@ -218,6 +197,25 @@
       pendingPrompt.set(null);
     }
   }
+
+  onMount(() => {
+    const interval = setInterval(async () => {
+      try {
+        const response = await fetch("/api/toOpenAI");
+        if (response.ok) {
+          const { progress } = await response.json();
+          latestProgress.set(progress);
+          console.log("UPDATED LATEST PROGRESS to:", get(latestProgress));
+        } else {
+          console.error("Failed to fetch progress");
+        }
+      } catch (error) {
+        console.error("Error fetching progress:", error);
+      }
+    }, 30000); // Poll every 30 seconds
+
+    return () => clearInterval(interval); // Cleanup on component unmount
+  });
 
   //UI Related functions
   function addPromptWindow() {
@@ -265,6 +263,11 @@
     manageTimer();
   } else {
     clearInterval(interval);
+  }
+
+  $: {
+    console.log("reactive getting latest progress:" + get(latestProgress));
+    latestProgress.set($latestProgress);
   }
 
   // Format time as MM:SS
@@ -336,13 +339,26 @@
   function previousStep() {
     if (currentStep > 0) currentStep--;
   }
+
+  function logout() {
+    selectedAnnotationType.set("");
+    userId.set(null);
+    userName.set(null);
+    prompts.set(null);
+
+    location.href = "../";
+  }
 </script>
 
 <section class="head">
-  <h1>
-    <Fa icon={faHouse} /> <span style="color:#5facf2">{$userName}</span>'s
-    Prompts
-  </h1>
+  <div style="display:flex; justify-content:space-between">
+    <h1 style="margin:0% 0% 0% 0%;">
+      <Fa icon={faHouse} /> <span style="color:#5facf2">{$userName}</span>'s
+      Prompts
+    </h1>
+    <!-- <button on:click={() => (location.href = "../")}>Log Out</button> -->
+    <button on:click={logout}>Log Out</button>
+  </div>
   <p>
     Selected Annotation Type: <span style="font-weight:bold"
       >{$selectedAnnotationType}</span
@@ -490,6 +506,7 @@
   <button on:click={addPromptWindow} style="margin: 0% 0% 2% 5%"
     >+ New Prompt</button
   >
+  <!-- <p>{get(latestProgress)}</p> -->
   {#if $pendingPrompt}
     <div class="prompt">
       <!-- svelte-ignore a11y-click-events-have-key-events -->
@@ -507,6 +524,8 @@
             ><br /> The results will automatically return when annotation is
             finished.<br />
             AI is annotating data... <span>Time elapsed: {formattedTime}</span>
+            <br />
+            Latest progress in annotation is: {get(latestProgress)}
           </p>
         {/if}
       </div>
@@ -617,7 +636,7 @@
 
 <style>
   .head {
-    margin: 0% 5% 0% 5%;
+    margin: 3% 5% 0% 5%;
     display: flex-start;
   }
 

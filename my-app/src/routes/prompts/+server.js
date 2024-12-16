@@ -80,7 +80,7 @@ export async function GET({ url }) {
  * @param {string | any[] | import("mysql2").OkPacket | import("mysql2").ResultSetHeader} annotations
  */
 function calculateMetrics(annotations) {
-  console.log("Calculating metrics for annotations:", annotations);
+  // console.log("Calculating metrics for annotations:", annotations);
 
   let truePositives = 0;
   let falsePositives = 0;

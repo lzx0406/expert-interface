@@ -2,11 +2,6 @@ import dotenv from "dotenv";
 
 import mysql from "mysql2/promise";
 
-console.log("DB_HOST:", process.env.DB_HOST);
-console.log("DB_NAME:", process.env.DB_NAME);
-console.log("DB_USER:", process.env.DB_USER);
-// Avoid logging DB_PASSWORD for security reasons
-
 // export const db = mysql.createPool({
 //   host: process.env.DB_HOST,
 //   user: process.env.DB_USER,
@@ -23,8 +18,8 @@ export const db = mysql.createPool({
   host: "aiexpertsdb.ch0mqku8apof.us-east-2.rds.amazonaws.com",
   user: "admin",
   password: "",
-  // password: "GFFv.!*}7{nbdfgeipe:98Z1pT+1q", // Your RDS password
-  database: "aiexpertsdb", // The database you created
+  // password: secret,
+  database: "aiexpertsdb",
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,

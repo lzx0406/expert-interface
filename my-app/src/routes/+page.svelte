@@ -1,20 +1,30 @@
 <script>
   import { goto } from "$app/navigation";
   import { selectedAnnotationType } from "$lib/stores";
+  import { get } from "svelte/store";
+
+  let errorMessage = "";
 
   /**
+   * Sets the annotation type.
    * @param {string} type
    */
   function setAnnotation(type) {
     selectedAnnotationType.set(type);
+    errorMessage = "";
   }
 
-  function navigateToLogin() {
-    goto("/login");
-  }
-
-  function navigateToSignup() {
-    goto("/signup");
+  /**
+   * @param {string | URL} path
+   */
+  function navigateTo(path) {
+    const annotationType = get(selectedAnnotationType);
+    console.log("GET the TYPEEEE" + annotationType);
+    if (annotationType) {
+      goto(path);
+    } else {
+      errorMessage = "Please select an annotation type before proceeding.";
+    }
   }
 </script>
 
@@ -42,9 +52,13 @@
     </label>
   </div>
 
+  <!-- {#if errorMessage} -->
+  <p class="error-message">{errorMessage}</p>
+  <!-- {/if} -->
+
   <div class="actions">
-    <button on:click={navigateToLogin}>Log In</button>
-    <button on:click={navigateToSignup}>Sign Up</button>
+    <button on:click={() => navigateTo("/login")}>Log In</button>
+    <button on:click={() => navigateTo("/signup")}>Sign Up</button>
   </div>
 
   <p style="margin:10% 20% 0% 20%">
@@ -69,6 +83,7 @@
 
   .annotation-type {
     margin-top: 40px;
+    font-size: larger;
   }
 
   .annotation-type label {
@@ -87,5 +102,11 @@
     padding: 8px 15px;
     cursor: pointer;
     border-radius: 5px;
+    margin: 1em;
+    font-size: larger;
+  }
+
+  .error-message {
+    color: red;
   }
 </style>

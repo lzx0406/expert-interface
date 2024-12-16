@@ -1,6 +1,7 @@
 import { db } from "$lib/database.js"; // Ensure this file provides a MySQL connection with transaction support
 import { exec } from "child_process"; // To run CLI commands
 import path from "path";
+import { get } from "svelte/store";
 
 import fs from "fs";
 import fetch from "node-fetch";
@@ -12,7 +13,9 @@ import {
   userId,
   userName,
   prompts,
+  latestProgress,
 } from "$lib/stores";
+import { faQuestion } from "@fortawesome/free-solid-svg-icons";
 
 // Set the OpenAI API key
 const apiKey = "";
@@ -48,19 +51,17 @@ function parseResponse(responseText) {
  * @param {any[]} dataset
  * @param {fs.PathOrFileDescriptor} outputPath
  * @param {any} system_prompt
- * @param {any} question
- * @param {boolean} init
+ * @param {undefined} [question]
  */
-async function saveToJSONL(dataset, outputPath, system_prompt, question, init) {
+async function saveToJSONL(dataset, outputPath, system_prompt, question) {
   const formattedData = dataset.map((item, index) => {
     // Ensure all fields are strings
-    const prompt = item.text ? String(item.text) : "";
+    // const prompt = item.text ? String(item.text) : "";
     const description = item.description ? String(item.description) : "";
     const transcript = item.transcript ? String(item.transcript) : "";
     const comment = item.comment ? String(item.comment) : "";
     const true_value = item.true_value ? "Yes" : "No";
-    // console.log("LOGGINGGGG" + prompt);
-    // console.log("OR custom prompt:" + question);
+    // console.log("Custom prompt for JSON:" + question);
 
     // Debugging: Log if true_value is not a string
     if (typeof true_value !== "string") {
@@ -70,35 +71,20 @@ async function saveToJSONL(dataset, outputPath, system_prompt, question, init) {
       );
     }
 
-    if (!init) {
-      return {
-        messages: [
-          {
-            role: "system",
-            content: system_prompt,
-          },
-          {
-            role: "user",
-            content: `Prompt for annotation: ${question}\nVideo description: ${description}\nTranscript: ${transcript}\nComment: ${comment}`,
-          },
-          { role: "assistant", content: true_value },
-        ],
-      };
-    } else {
-      return {
-        messages: [
-          {
-            role: "system",
-            content: system_prompt,
-          },
-          {
-            role: "user",
-            content: `Prompt for annotation: ${prompt}\nVideo description: ${description}\nTranscript: ${transcript}\nComment: ${comment}`,
-          },
-          { role: "assistant", content: true_value },
-        ],
-      };
-    }
+    return {
+      messages: [
+        {
+          role: "system",
+          content: system_prompt,
+        },
+        {
+          role: "user",
+          content: `Prompt for annotation: ${question}\nVideo description: ${description}\nTranscript: ${transcript}\nComment: ${comment}`,
+        },
+        { role: "assistant", content: true_value },
+      ],
+    };
+    // }
   });
 
   // Write to a JSONL file
@@ -131,6 +117,9 @@ async function pollFineTuningJobStatus(fineTuneJobId) {
       console.log(
         `Polling attempt ${attempt + 1}: Job status is '${jobStatus}'`
       );
+
+      latestProgress.set("fine tuning job " + jobStatus);
+      console.log(`Latest progress set to${get(latestProgress)}`);
 
       if (jobStatus === "succeeded") {
         console.log("Fine-tuning completed successfully.");
@@ -194,15 +183,16 @@ async function getFineTunedModelName(connection, writer_id) {
 export async function POST({ request }) {
   const {
     trainingSet,
-    validationSet,
+    // validationSet,
     testSet,
     question,
     system_prompt,
-    prompt_type,
     $prompts,
+    prompt_type,
     writer_id,
   } = await request.json();
   let connection;
+  console.log("QUESSSSS reveived in server:" + question);
   console.log("IN SERVER RECEIVED:" + prompt_type + writer_id);
 
   try {
@@ -211,144 +201,64 @@ export async function POST({ request }) {
 
     await connection.beginTransaction();
 
-    const existingModelName = await getFineTunedModelName(
-      // @ts-ignore
-      connection,
-      writer_id
+    latestProgress.set("starting");
+    await saveToJSONL(
+      trainingSet,
+      "training_data.jsonl",
+      system_prompt,
+      question
     );
+    // await saveToJSONL(validationSet, "validation_data.jsonl", system_prompt);
 
-    let fineTunedModelName;
-    if (existingModelName) {
-      fineTunedModelName = existingModelName;
-      console.log(
-        `Using existing fine-tuned model for writer_id ${writer_id}: ${fineTunedModelName}`
-      );
-      // console.log($prompts);
+    // Upload the training file
+    const trainingUploadResponse = await openai.files.create({
+      file: fs.createReadStream("training_data.jsonl"),
+      purpose: "fine-tune",
+    });
 
-      await saveToJSONL(
-        trainingSet,
-        "training_data.jsonl",
-        system_prompt,
-        $prompts[$prompts.length - 1].text,
-        false
-      );
-      await saveToJSONL(
-        validationSet,
-        "validation_data.jsonl",
-        system_prompt,
-        $prompts[$prompts.length - 1].text,
-        false
-      );
-      const trainingUploadResponse = await openai.files.create({
-        file: fs.createReadStream("training_data.jsonl"),
-        purpose: "fine-tune",
-      });
+    console.log("Training file uploaded:", trainingUploadResponse);
 
-      console.log("Training file uploaded:", trainingUploadResponse);
+    // Upload the validation file
+    // const validationUploadResponse = await openai.files.create({
+    //   file: fs.createReadStream("validation_data.jsonl"),
+    //   purpose: "fine-tune",
+    // });
 
-      // Upload the validation file
-      const validationUploadResponse = await openai.files.create({
-        file: fs.createReadStream("validation_data.jsonl"),
-        purpose: "fine-tune",
-      });
+    // console.log("Validation file uploaded:", validationUploadResponse);
 
-      console.log("Validation file uploaded:", validationUploadResponse);
+    // Create the fine-tuning job
+    const fineTuneResponse = await openai.fineTuning.jobs.create({
+      training_file: trainingUploadResponse.id,
+      // validation_file: validationUploadResponse.id,
+      model: "gpt-4o-mini-2024-07-18",
+      hyperparameters: {
+        n_epochs: 3,
+        batch_size: 128,
+      },
+    });
 
-      // Create the fine-tuning job
-      const fineTuneResponse = await openai.fineTuning.jobs.create({
-        training_file: trainingUploadResponse.id,
-        validation_file: validationUploadResponse.id,
-        model: fineTunedModelName,
-        hyperparameters: {
-          n_epochs: 3, // Reduce the number of epochs to 1?
-          batch_size: 128,
-        },
-      });
+    console.log("Fine-tuning job created:", fineTuneResponse);
 
-      console.log("Fine-tuning job created:", fineTuneResponse);
+    const fineTuneJobId = fineTuneResponse.id;
 
-      const fineTuneJobId = fineTuneResponse.id;
+    // Poll for job status
+    const fineTunedModelName = await pollFineTuningJobStatus(fineTuneJobId);
 
-      // Poll for job status
-      fineTunedModelName = await pollFineTuningJobStatus(fineTuneJobId);
-
-      if (!fineTunedModelName) {
-        throw new Error("Fine-tuning failed or timed out");
-      }
-
-      console.log("Fine-tuned model name:", fineTunedModelName);
-
-      // Insert the mapping into the FineTunedModels table
-      await connection.query(
-        `INSERT INTO FineTunedModels (writer_id, model_name, created_at) VALUES (?, ?, NOW())`,
-        [writer_id, fineTunedModelName]
-      );
-    } else {
-      console.log(
-        "Didn't find a fine-tuned model for this writer, creating a new one."
-      );
-      await saveToJSONL(
-        trainingSet,
-        "training_data.jsonl",
-        system_prompt,
-        "",
-        true
-      );
-      await saveToJSONL(
-        validationSet,
-        "validation_data.jsonl",
-        system_prompt,
-        "",
-        true
-      );
-
-      // Upload the training file
-      const trainingUploadResponse = await openai.files.create({
-        file: fs.createReadStream("training_data.jsonl"),
-        purpose: "fine-tune",
-      });
-
-      console.log("Training file uploaded:", trainingUploadResponse);
-
-      // Upload the validation file
-      const validationUploadResponse = await openai.files.create({
-        file: fs.createReadStream("validation_data.jsonl"),
-        purpose: "fine-tune",
-      });
-
-      console.log("Validation file uploaded:", validationUploadResponse);
-
-      // Create the fine-tuning job
-      const fineTuneResponse = await openai.fineTuning.jobs.create({
-        training_file: trainingUploadResponse.id,
-        validation_file: validationUploadResponse.id,
-        model: "gpt-4o-mini-2024-07-18",
-        hyperparameters: {
-          n_epochs: 1, // Reduce the number of epochs to 1?
-          batch_size: 128,
-        },
-      });
-
-      console.log("Fine-tuning job created:", fineTuneResponse);
-
-      const fineTuneJobId = fineTuneResponse.id;
-
-      // Poll for job status
-      fineTunedModelName = await pollFineTuningJobStatus(fineTuneJobId);
-
-      if (!fineTunedModelName) {
-        throw new Error("Fine-tuning failed or timed out");
-      }
-
-      console.log("Fine-tuned model name:", fineTunedModelName);
-
-      // Insert the mapping into the FineTunedModels table
-      await connection.query(
-        `INSERT INTO FineTunedModels (writer_id, model_name, created_at) VALUES (?, ?, NOW())`,
-        [writer_id, fineTunedModelName]
-      );
+    if (!fineTunedModelName) {
+      latestProgress.set("fine-tuning failed or timed out");
+      throw new Error("Fine-tuning failed or timed out");
     }
 
+    // console.log("Fine-tuned model name:", fineTunedModelName);
+
+    // // Insert the mapping into the FineTunedModels table
+    // await connection.query(
+    //   `INSERT INTO FineTunedModels (writer_id, model_name, created_at) VALUES (?, ?, NOW())`,
+    //   [writer_id, fineTunedModelName]
+    // );
+    // // }
+
+    latestProgress.set("annotating");
     console.log("QUESTION THIS TIME:" + question);
     // 1. Insert into Prompt (only once for the entire batch)
     const [promptResult] = await connection.query(
@@ -489,4 +399,10 @@ export async function POST({ request }) {
       status: 500,
     });
   }
+}
+
+export async function GET() {
+  return new Response(JSON.stringify({ progress: get(latestProgress) }), {
+    status: 200,
+  });
 }
