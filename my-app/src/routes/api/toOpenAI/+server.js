@@ -201,62 +201,123 @@ export async function POST({ request }) {
 
     await connection.beginTransaction();
 
-    latestProgress.set("starting");
-    await saveToJSONL(
-      trainingSet,
-      "training_data.jsonl",
-      system_prompt,
-      question
+    const existingModelName = await getFineTunedModelName(
+      // @ts-ignore
+      connection,
+      writer_id
     );
-    // await saveToJSONL(validationSet, "validation_data.jsonl", system_prompt);
 
-    // Upload the training file
-    const trainingUploadResponse = await openai.files.create({
-      file: fs.createReadStream("training_data.jsonl"),
-      purpose: "fine-tune",
-    });
+    let fineTunedModelName;
+    if (existingModelName) {
+      fineTunedModelName = existingModelName;
+      console.log(
+        `Using existing fine-tuned model for writer_id ${writer_id}: ${fineTunedModelName}`
+      );
 
-    console.log("Training file uploaded:", trainingUploadResponse);
+      latestProgress.set("starting");
+      await saveToJSONL(
+        trainingSet,
+        "training_data.jsonl",
+        system_prompt,
+        question
+      );
+      // await saveToJSONL(validationSet, "validation_data.jsonl", system_prompt);
 
-    // Upload the validation file
-    // const validationUploadResponse = await openai.files.create({
-    //   file: fs.createReadStream("validation_data.jsonl"),
-    //   purpose: "fine-tune",
-    // });
+      // Upload the training file
+      const trainingUploadResponse = await openai.files.create({
+        file: fs.createReadStream("training_data.jsonl"),
+        purpose: "fine-tune",
+      });
 
-    // console.log("Validation file uploaded:", validationUploadResponse);
+      console.log("Training file uploaded:", trainingUploadResponse);
 
-    // Create the fine-tuning job
-    const fineTuneResponse = await openai.fineTuning.jobs.create({
-      training_file: trainingUploadResponse.id,
-      // validation_file: validationUploadResponse.id,
-      model: "gpt-4o-mini-2024-07-18",
-      hyperparameters: {
-        n_epochs: 3,
-        batch_size: 128,
-      },
-    });
+      // Upload the validation file
+      // const validationUploadResponse = await openai.files.create({
+      //   file: fs.createReadStream("validation_data.jsonl"),
+      //   purpose: "fine-tune",
+      // });
 
-    console.log("Fine-tuning job created:", fineTuneResponse);
+      // console.log("Validation file uploaded:", validationUploadResponse);
 
-    const fineTuneJobId = fineTuneResponse.id;
+      // Create the fine-tuning job
+      const fineTuneResponse = await openai.fineTuning.jobs.create({
+        training_file: trainingUploadResponse.id,
+        // validation_file: validationUploadResponse.id,
+        model: fineTunedModelName,
+        hyperparameters: {
+          n_epochs: 1,
+          batch_size: 128,
+        },
+      });
 
-    // Poll for job status
-    const fineTunedModelName = await pollFineTuningJobStatus(fineTuneJobId);
+      console.log("Fine-tuning job created:", fineTuneResponse);
 
-    if (!fineTunedModelName) {
-      latestProgress.set("fine-tuning failed or timed out");
-      throw new Error("Fine-tuning failed or timed out");
+      const fineTuneJobId = fineTuneResponse.id;
+
+      // Poll for job status
+      fineTunedModelName = await pollFineTuningJobStatus(fineTuneJobId);
+
+      if (!fineTunedModelName) {
+        latestProgress.set("fine-tuning failed or timed out");
+        throw new Error("Fine-tuning failed or timed out");
+      }
+
+      console.log("Fine-tuned model name:", fineTunedModelName);
+
+      // Insert the mapping into the FineTunedModels table
+      await connection.query(
+        `INSERT INTO FineTunedModels (writer_id, model_name, created_at) VALUES (?, ?, NOW())`,
+        [writer_id, fineTunedModelName]
+      );
+    } else {
+      console.log(
+        "Didn't find a fine-tuned model for this writer, creating a new one."
+      );
+
+      latestProgress.set("starting");
+      await saveToJSONL(
+        trainingSet,
+        "training_data.jsonl",
+        system_prompt,
+        question
+      );
+
+      // Upload the training file
+      const trainingUploadResponse = await openai.files.create({
+        file: fs.createReadStream("training_data.jsonl"),
+        purpose: "fine-tune",
+      });
+
+      console.log("Training file uploaded:", trainingUploadResponse);
+      const fineTuneResponse = await openai.fineTuning.jobs.create({
+        training_file: trainingUploadResponse.id,
+        model: "gpt-4o-mini-2024-07-18",
+        hyperparameters: {
+          n_epochs: 1,
+          batch_size: 128,
+        },
+      });
+
+      console.log("Fine-tuning job created:", fineTuneResponse);
+
+      const fineTuneJobId = fineTuneResponse.id;
+
+      // Poll for job status
+      fineTunedModelName = await pollFineTuningJobStatus(fineTuneJobId);
+
+      if (!fineTunedModelName) {
+        latestProgress.set("fine-tuning failed or timed out");
+        throw new Error("Fine-tuning failed or timed out");
+      }
+
+      console.log("Fine-tuned model name:", fineTunedModelName);
+
+      // Insert the mapping into the FineTunedModels table
+      await connection.query(
+        `INSERT INTO FineTunedModels (writer_id, model_name, created_at) VALUES (?, ?, NOW())`,
+        [writer_id, fineTunedModelName]
+      );
     }
-
-    // console.log("Fine-tuned model name:", fineTunedModelName);
-
-    // // Insert the mapping into the FineTunedModels table
-    // await connection.query(
-    //   `INSERT INTO FineTunedModels (writer_id, model_name, created_at) VALUES (?, ?, NOW())`,
-    //   [writer_id, fineTunedModelName]
-    // );
-    // // }
 
     latestProgress.set("annotating");
     console.log("QUESTION THIS TIME:" + question);
@@ -377,10 +438,10 @@ export async function POST({ request }) {
 
     // Commit the transaction after successfully inserting all records
     await connection.commit();
+    latestProgress.set("annotation completed");
     // @ts-ignore
     // waitingForAnnotation.set(false);
     // pendingPrompt.set(null);
-
     return new Response(
       JSON.stringify({
         message: "Data processed and saved to database successfully",

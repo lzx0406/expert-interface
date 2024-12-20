@@ -40,4 +40,7 @@ export const waitingForAnnotation = persistentStore(
   false
 );
 export const pendingPrompt = persistentStore("pendingPrompt", null);
-export const latestProgress = persistentStore("latestProgress", "pending");
+export const latestProgress = persistentStore(
+  "latestProgress",
+  "annotation completed"
+);

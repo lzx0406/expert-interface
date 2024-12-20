@@ -33,7 +33,6 @@
   let timeElapsed = 0;
   let minutes, seconds, formattedTime;
   let interval;
-  // latestProgress.set("pending");
   console.log("GETTT waiting for annotation:" + $waitingForAnnotation);
   console.log("GETTT Latest:" + $latestProgress);
 
@@ -43,6 +42,19 @@
   // Fetch past prompts for the logged-in user on component mount
   onMount(() => {
     fetchPastPrompts();
+  });
+
+  onMount(() => {
+    const currentPrompt = get(pendingPrompt);
+    const currentProgress = get(latestProgress);
+
+    if (currentPrompt && currentProgress !== "annotation completed") {
+      waitingForAnnotation.set(true);
+      console.log("AFTER REFRESH got YES still annotating");
+    } else {
+      waitingForAnnotation.set(false);
+      console.log("AFTER REFRESH NOT still annotating");
+    }
   });
 
   // Backend function to handle fetching prompts with metrics
@@ -136,6 +148,7 @@
   }
 
   async function sendPrompt(question) {
+    latestProgress.set("pending");
     console.log("Got the question" + question);
     showPopup = false;
 
@@ -186,15 +199,18 @@
         );
 
         // Refresh past prompts after a successful request
-        fetchPastPrompts();
+        await fetchPastPrompts();
+
+        latestProgress.set("annotation completed");
+        waitingForAnnotation.set(false);
+        pendingPrompt.set(null);
       } else {
         console.error("Failed to send data to OpenAI");
+        waitingForAnnotation.set(false);
       }
     } catch (error) {
       console.error("Error sending data to OpenAI:", error);
-    } finally {
       waitingForAnnotation.set(false);
-      pendingPrompt.set(null);
     }
   }
 
@@ -216,6 +232,15 @@
 
     return () => clearInterval(interval); // Cleanup on component unmount
   });
+
+  $: {
+    if ($latestProgress === "annotation completed") {
+      // Annotation is done, so clear the pending prompt and refresh data.
+      waitingForAnnotation.set(false);
+      pendingPrompt.set(null);
+      fetchPastPrompts();
+    }
+  }
 
   //UI Related functions
   function addPromptWindow() {
@@ -265,11 +290,6 @@
     clearInterval(interval);
   }
 
-  $: {
-    console.log("reactive getting latest progress:" + get(latestProgress));
-    latestProgress.set($latestProgress);
-  }
-
   // Format time as MM:SS
   $: {
     minutes = Math.floor(timeElapsed / 60);
@@ -279,6 +299,28 @@
   }
   $: {
     formattedTime = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+  }
+
+  function getColor(status) {
+    if (
+      [
+        "annotation completed",
+        "fine tuning job validating_files",
+        "fine tuning job running",
+        "fine tuning job succeeded",
+        "annotating",
+        "starting",
+      ].includes(status)
+    ) {
+      return "green";
+    } else if (["pending", "fine tuning job queued"].includes(status)) {
+      return "orange";
+    } else if (
+      ["fine tuning job failed", "fine tuning job cancelled"].includes(status)
+    ) {
+      return "red";
+    }
+    return "inherit";
   }
 
   onDestroy(() => {
@@ -506,7 +548,7 @@
   <button on:click={addPromptWindow} style="margin: 0% 0% 2% 5%"
     >+ New Prompt</button
   >
-  <!-- <p>{get(latestProgress)}</p> -->
+  <!-- <p>{$latestProgress}</p> -->
   {#if $pendingPrompt}
     <div class="prompt">
       <!-- svelte-ignore a11y-click-events-have-key-events -->
@@ -519,13 +561,17 @@
         <h3>New Prompt</h3>
         {#if $waitingForAnnotation}
           <p style="text-align:right">
-            <span style="color:red; font-weight:bold"
+            <!-- <span style="color:red; font-weight:bold"
               >Please do not close the window or refresh while annotating.</span
             ><br /> The results will automatically return when annotation is
-            finished.<br />
-            AI is annotating data... <span>Time elapsed: {formattedTime}</span>
+            finished.<br /> -->
+            <!-- AI is annotating data...  -->
+            <span>Time elapsed: {formattedTime}</span>
             <br />
-            Latest progress in annotation is: {get(latestProgress)}
+            Latest progress in AI annotation:
+            <span style="color: {getColor($latestProgress)}"
+              >{$latestProgress}
+            </span>
           </p>
         {/if}
       </div>
