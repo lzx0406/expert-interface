@@ -39,6 +39,12 @@
   let showPopup = false;
   let newAddingPrompt;
 
+  onMount(() => {
+    if (!get(userId) || !get(userName)) {
+      logout();
+    }
+  });
+
   // Fetch past prompts for the logged-in user on component mount
   onMount(() => {
     fetchPastPrompts();
@@ -54,6 +60,13 @@
     } else {
       waitingForAnnotation.set(false);
       console.log("AFTER REFRESH NOT still annotating");
+    }
+  });
+
+  onMount(() => {
+    const storedTimestamp = localStorage.getItem("annotationStartTimestamp");
+    if (storedTimestamp && $waitingForAnnotation) {
+      manageTimer();
     }
   });
 
@@ -102,16 +115,19 @@
   onMount(async () => {
     console.log("HEREEEEEE" + $selectedAnnotationType);
     if ($selectedAnnotationType === "call to action") {
-      admin_p_id = 1;
+      admin_p_id = 4;
     } else if ($selectedAnnotationType === "concern wildlife") {
-      admin_p_id = 2;
+      admin_p_id = 5;
     } else admin_p_id = 0;
     try {
       // Fetch data from the backend
       const response = await fetch(`/api/getAdminData?prompt_id=${admin_p_id}`);
       if (response.ok) {
         adminData = await response.json();
-        console.log("Found admin data for type" + $selectedAnnotationType);
+        // console.log("Found admin data for type" + $selectedAnnotationType);
+        console.log(
+          `Found ${adminData.length} rows in admin data for type: ${$selectedAnnotationType}`
+        );
       } else {
         console.error("Failed to fetch admin data");
       }
@@ -151,6 +167,8 @@
     latestProgress.set("pending");
     console.log("Got the question" + question);
     showPopup = false;
+    const startTimestamp = Date.now();
+    localStorage.setItem("annotationStartTimestamp", startTimestamp.toString());
 
     // Retrieve the latest values from Svelte stores
     const annotationTypeValue = get(selectedAnnotationType);
@@ -222,13 +240,14 @@
           const { progress } = await response.json();
           latestProgress.set(progress);
           console.log("UPDATED LATEST PROGRESS to:", get(latestProgress));
+          console.log("waiting for annotation??", get(waitingForAnnotation));
         } else {
           console.error("Failed to fetch progress");
         }
       } catch (error) {
         console.error("Error fetching progress:", error);
       }
-    }, 30000); // Poll every 30 seconds
+    }, 10000); // Poll every 10 seconds
 
     return () => clearInterval(interval); // Cleanup on component unmount
   });
@@ -268,14 +287,33 @@
     expInstruction = !expInstruction;
   }
 
+  // function manageTimer() {
+  //   if ($waitingForAnnotation) {
+  //     timeElapsed = 0; // Reset timer at the start
+  //     interval = setInterval(() => {
+  //       timeElapsed += 1;
+  //     }, 1000);
+  //   } else {
+  //     clearInterval(interval);
+  //   }
+  // }
+
   function manageTimer() {
+    clearInterval(interval);
+
     if ($waitingForAnnotation) {
-      timeElapsed = 0; // Reset timer at the start
       interval = setInterval(() => {
-        timeElapsed += 1;
+        const storedTimestamp = localStorage.getItem(
+          "annotationStartTimestamp"
+        );
+        if (storedTimestamp) {
+          const elapsedMs = Date.now() - parseInt(storedTimestamp, 10);
+          timeElapsed = Math.floor(elapsedMs / 1000);
+        } else {
+          // If for some reason there's no stored timestamp, just set to 0
+          timeElapsed = 0;
+        }
       }, 1000);
-    } else {
-      clearInterval(interval);
     }
   }
 
@@ -300,6 +338,9 @@
   $: {
     formattedTime = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
   }
+  onDestroy(() => {
+    clearInterval(interval);
+  });
 
   function getColor(status) {
     if (
@@ -322,10 +363,6 @@
     }
     return "inherit";
   }
-
-  onDestroy(() => {
-    clearInterval(interval); // Ensure interval is cleared on component destruction
-  });
 
   function formatTimeSubmitted(time) {
     const date = new Date(time);
@@ -622,7 +659,7 @@
       <div class="popup-content">
         <h3>Annotation Process</h3>
         <p>
-          The annotation process takes approximately more than 10 minutes to
+          The annotation process takes approximately more than 20 minutes to
           complete. Please do not refresh page while annotation is in progress.
           Click "Proceed" to start.
         </p>

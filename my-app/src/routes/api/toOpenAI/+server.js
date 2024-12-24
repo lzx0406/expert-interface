@@ -245,7 +245,7 @@ export async function POST({ request }) {
         // validation_file: validationUploadResponse.id,
         model: fineTunedModelName,
         hyperparameters: {
-          n_epochs: 1,
+          n_epochs: 10,
           batch_size: 128,
         },
       });
@@ -293,7 +293,7 @@ export async function POST({ request }) {
         training_file: trainingUploadResponse.id,
         model: "gpt-4o-mini-2024-07-18",
         hyperparameters: {
-          n_epochs: 1,
+          n_epochs: 10,
           batch_size: 128,
         },
       });

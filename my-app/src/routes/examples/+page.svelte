@@ -96,7 +96,7 @@
       let include = true;
 
       const truth = row["true_value"];
-      console.log(truth);
+      // console.log(truth);
       const prediction = row["predicted_value"];
 
       if (predValue) {
@@ -119,7 +119,7 @@
         include = include && truth != prediction;
       }
 
-      console.log(include);
+      // console.log(include);
       return include;
     });
   }

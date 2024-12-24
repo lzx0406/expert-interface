@@ -25,7 +25,10 @@ export async function POST({ request }) {
   } catch (error) {
     console.error("Error inserting user:", error);
     return new Response(
-      JSON.stringify({ message: "Sign up failed. Please try again." }),
+      JSON.stringify({
+        message:
+          "Sign up failed. Please try again. Note that each account is identified by unique email. If the error persists, please try again later.",
+      }),
       { status: 500 }
     );
   }
