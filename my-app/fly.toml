@@ -17,7 +17,7 @@ primary_region = 'ord'
   processes = ['app']
 
 [env]
-  BODY_SIZE_LIMIT = 4811090
+  BODY_SIZE_LIMIT = 5500000
 
 [[vm]]
   memory = '2gb'

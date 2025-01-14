@@ -102,8 +102,9 @@ async function saveToJSONL(dataset, outputPath, system_prompt, question) {
 
 /**
  * @param {string} fineTuneJobId
+ * @param {any} writer_id
  */
-async function pollFineTuningJobStatus(fineTuneJobId) {
+async function pollFineTuningJobStatus(fineTuneJobId, writer_id) {
   const pollInterval = 60000; // 60 seconds
   const maxRetries = 60; // Maximum number of retries (1 hour)
 
@@ -115,7 +116,9 @@ async function pollFineTuningJobStatus(fineTuneJobId) {
       const jobStatus = jobStatusResponse.status;
 
       console.log(
-        `Polling attempt ${attempt + 1}: Job status is '${jobStatus}'`
+        `Polling attempt ${
+          attempt + 1
+        } for writer ${writer_id}: Job status is '${jobStatus}'`
       );
 
       latestProgress.set("fine tuning job " + jobStatus);
@@ -246,7 +249,7 @@ export async function POST({ request }) {
         model: fineTunedModelName,
         hyperparameters: {
           n_epochs: 10,
-          batch_size: 128,
+          batch_size: 64,
         },
       });
 
@@ -255,7 +258,10 @@ export async function POST({ request }) {
       const fineTuneJobId = fineTuneResponse.id;
 
       // Poll for job status
-      fineTunedModelName = await pollFineTuningJobStatus(fineTuneJobId);
+      fineTunedModelName = await pollFineTuningJobStatus(
+        fineTuneJobId,
+        writer_id
+      );
 
       if (!fineTunedModelName) {
         latestProgress.set("fine-tuning failed or timed out");
@@ -294,7 +300,7 @@ export async function POST({ request }) {
         model: "gpt-4o-mini-2024-07-18",
         hyperparameters: {
           n_epochs: 10,
-          batch_size: 128,
+          batch_size: 64,
         },
       });
 
@@ -303,7 +309,10 @@ export async function POST({ request }) {
       const fineTuneJobId = fineTuneResponse.id;
 
       // Poll for job status
-      fineTunedModelName = await pollFineTuningJobStatus(fineTuneJobId);
+      fineTunedModelName = await pollFineTuningJobStatus(
+        fineTuneJobId,
+        writer_id
+      );
 
       if (!fineTunedModelName) {
         latestProgress.set("fine-tuning failed or timed out");

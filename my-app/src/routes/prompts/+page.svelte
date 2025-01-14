@@ -53,8 +53,15 @@
   onMount(() => {
     const currentPrompt = get(pendingPrompt);
     const currentProgress = get(latestProgress);
+    console.log("AFTER REFRESH got prompt" + currentPrompt);
+    console.log("AFTER REFRESH got latest" + currentProgress);
 
-    if (currentPrompt && currentProgress !== "annotation completed") {
+    if (
+      currentPrompt &&
+      currentProgress !== "annotation completed" &&
+      currentProgress !== "error sending data to OpenAI" &&
+      currentProgress !== "waiting for annotation task"
+    ) {
       waitingForAnnotation.set(true);
       console.log("AFTER REFRESH got YES still annotating");
     } else {
@@ -219,16 +226,18 @@
         // Refresh past prompts after a successful request
         await fetchPastPrompts();
 
-        latestProgress.set("annotation completed");
-        waitingForAnnotation.set(false);
-        pendingPrompt.set(null);
+        // latestProgress.set("annotation completed");
+        // waitingForAnnotation.set(false);
+        // pendingPrompt.set(null);
       } else {
         console.error("Failed to send data to OpenAI");
         waitingForAnnotation.set(false);
+        latestProgress.set("error sending data to OpenAI");
       }
     } catch (error) {
       console.error("Error sending data to OpenAI:", error);
       waitingForAnnotation.set(false);
+      latestProgress.set("error sending data to OpenAI");
     }
   }
 
@@ -241,6 +250,7 @@
           latestProgress.set(progress);
           console.log("UPDATED LATEST PROGRESS to:", get(latestProgress));
           console.log("waiting for annotation??", get(waitingForAnnotation));
+          console.log("current pending prompt:" + get(pendingPrompt));
         } else {
           console.error("Failed to fetch progress");
         }
@@ -255,6 +265,7 @@
   $: {
     if ($latestProgress === "annotation completed") {
       // Annotation is done, so clear the pending prompt and refresh data.
+      console.log("CHANGE IN latest to ANNO COMP");
       waitingForAnnotation.set(false);
       pendingPrompt.set(null);
       fetchPastPrompts();
@@ -345,6 +356,7 @@
   function getColor(status) {
     if (
       [
+        "waiting for annotation task",
         "annotation completed",
         "fine tuning job validating_files",
         "fine tuning job running",
@@ -357,7 +369,11 @@
     } else if (["pending", "fine tuning job queued"].includes(status)) {
       return "orange";
     } else if (
-      ["fine tuning job failed", "fine tuning job cancelled"].includes(status)
+      [
+        "fine tuning job failed",
+        "fine tuning job cancelled",
+        "error sending data to OpenAI",
+      ].includes(status)
     ) {
       return "red";
     }
@@ -387,12 +403,12 @@
       text: `Hit the <span style="font-weight:bold;">+ New Prompt</span> button to start a new prompt 
         that will annotate your data. Fill in a text prompt and hit <span style="font-weight:bold;">Submit and Test</span>. 
         This sends the prompt to the AI, and annotates the statements (e.g., wildlife comment on YouTube), and may take longer 
-        than 10 minutes. Feel free to grab a coffee :)`,
+        than 30 minutes. Feel free to work on other tasks or grab a coffee :)`,
       img: "/videos/rec2.gif",
     },
     {
-      text: `Please allow the process to complete before navigating through the website as this is a computationally expensive 
-      process, and may result in unexpected results. Please don't close the window, but you are free to navigate away from the site and carry on with other work on your computer.`,
+      text: `Please don't close the window, but you are free to navigate away from the site and carry on with other work on your computer. </br>
+      If the New Prompt window does not persist, please refer to the <span style="font-weight:bold;">Current Progress in AI Annotation</span> for the state of the annotation task. The results will automatically return when annotation is finished.`,
     },
     {
       text: `Once the process is complete, you can click on the prompt to view the results of your prompt's ability to annotate the statements. 
@@ -408,6 +424,9 @@
       <span style="font-weight:bold;">True Value</span>: The value assigned by the human annotators.</br>
       You can also use the filters under <span style="font-weight:bold;">"Filter Examples"</span> to view only "Yes" or "No" values by AI or humans, or view only incorrect predictions.`,
       img: "/videos/rec4.gif",
+    },
+    {
+      text: `If you encounter any technical difficulties or have any questions, please contact developer at zexuanli@umich.edu. Thank you!`,
     },
   ];
 
@@ -502,7 +521,7 @@
             ><Fa icon={faChevronLeft} /> Previous</button
           >
           <div style="font-weight: bold; margin: 0em 1em 0em 1em">
-            Step {currentStep + 1} / 5
+            Step {currentStep + 1} / {steps.length}
           </div>
           <button
             on:click={nextStep}
@@ -582,10 +601,18 @@
 </section>
 
 <section>
-  <button on:click={addPromptWindow} style="margin: 0% 0% 2% 5%"
-    >+ New Prompt</button
+  <button
+    on:click={addPromptWindow}
+    style="margin: 0% 0% 2% 5%; display: block;">+ New Prompt</button
   >
-  <!-- <p>{$latestProgress}</p> -->
+  <p
+    style="margin: 0% 5% 2% 5%; background-color:#E8F2FE; border-radius: 10px; padding:10px; display: inline-block;"
+  >
+    Current Progress in AI Annotation: <span
+      style="color: {getColor($latestProgress)}; font-weight: bold;"
+      >{$latestProgress}
+    </span>
+  </p>
   {#if $pendingPrompt}
     <div class="prompt">
       <!-- svelte-ignore a11y-click-events-have-key-events -->
@@ -605,10 +632,10 @@
             <!-- AI is annotating data...  -->
             <span>Time elapsed: {formattedTime}</span>
             <br />
-            Latest progress in AI annotation:
+            <!-- Latest progress in AI annotation:
             <span style="color: {getColor($latestProgress)}"
               >{$latestProgress}
-            </span>
+            </span> -->
           </p>
         {/if}
       </div>
@@ -659,7 +686,7 @@
       <div class="popup-content">
         <h3>Annotation Process</h3>
         <p>
-          The annotation process takes approximately more than 20 minutes to
+          The annotation process takes approximately more than 30 minutes to
           complete. Please do not refresh page while annotation is in progress.
           Click "Proceed" to start.
         </p>
